@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import type { SheetMember } from "./PaidBySheet";
+import Avatar from "../../../components/shared/Avatar";
+import { fmt } from "../../../lib/format";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 function IconCheck({ size = 14 }: { size?: number }) {
@@ -29,17 +31,7 @@ function Checkbox({ checked, disabled }: { checked: boolean; disabled?: boolean 
   );
 }
 
-// ─── Avatar ───────────────────────────────────────────────────────────────────
-function Avatar({ member }: { member: SheetMember }) {
-  return (
-    <div
-      className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-white text-[12px] font-700"
-      style={{ backgroundColor: member.color }}
-    >
-      {member.initials}
-    </div>
-  );
-}
+// Avatar provided by src/components/shared/Avatar
 
 // ─── Split Between Sheet ──────────────────────────────────────────────────────
 export default function SplitBetweenSheet({
@@ -164,7 +156,7 @@ export default function SplitBetweenSheet({
                 } ${i > 0 ? "border-t border-[#F4F6F9]" : ""}`}
               >
                 <Checkbox checked={checked} />
-                <Avatar member={member} />
+                <Avatar member={member} size={36} />
                 <div className="flex-1 min-w-0">
                   <p className={`text-[15px] font-600 leading-snug ${checked ? "text-[#0F172A]" : "text-[#94A3B8]"}`}>
                     {member.name}

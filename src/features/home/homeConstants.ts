@@ -1,0 +1,1 @@
+export const BUDGET = 60000;

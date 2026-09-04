@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import Avatar from "../../../components/shared/Avatar";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface SheetMember {
@@ -18,17 +19,7 @@ function IconCheck({ size = 18 }: { size?: number }) {
   );
 }
 
-// ─── Avatar ───────────────────────────────────────────────────────────────────
-function Avatar({ member }: { member: SheetMember }) {
-  return (
-    <div
-      className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-white text-[12px] font-700"
-      style={{ backgroundColor: member.color }}
-    >
-      {member.initials}
-    </div>
-  );
-}
+// Avatar provided by src/components/shared/Avatar
 
 // ─── Paid By Sheet ────────────────────────────────────────────────────────────
 export default function PaidBySheet({
@@ -104,7 +95,7 @@ export default function PaidBySheet({
                   selected ? "bg-[#EFF9FB]" : "hover:bg-[#F8FAFC]"
                 } ${i > 0 ? "border-t border-[#F4F6F9]" : ""}`}
               >
-                <Avatar member={member} />
+                <Avatar member={member} size={36} />
 
                 <div className="flex-1 min-w-0">
                   <p className={`text-[15px] font-600 leading-snug ${selected ? "text-[#0A7490]" : "text-[#0F172A]"}`}>
