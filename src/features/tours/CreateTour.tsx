@@ -1,4 +1,6 @@
 import { useState, useId } from "react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowLeft01Icon, MapPinIcon, UserIcon, ChevronDownIcon } from "@hugeicons/core-free-icons";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface CreateTourData {
@@ -26,32 +28,20 @@ const CURRENCIES = [
   { code: "INR", symbol: "₹", label: "INR — ₹" },
 ];
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
-function IconChevronLeft({ size = 20 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M15 18l-6-6 6-6" />
-    </svg>
-  );
-}
-
-function IconChevronDown({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 9l6 6 6-6" />
-    </svg>
-  );
-}
+// ─── Spending style ───────────────────────────────────────────────────────────
+type SpendingStyle = "pay-as-you-go" | "budget";
 
 // ─── Field wrapper ─────────────────────────────────────────────────────────────
 function Field({
   label,
+  required,
   optional,
   error,
   children,
   htmlFor,
 }: {
   label: string;
+  required?: boolean;
   optional?: boolean;
   error?: string;
   children: React.ReactNode;
@@ -60,9 +50,12 @@ function Field({
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-baseline gap-1.5">
-        <label htmlFor={htmlFor} className="text-[12px] font-700 text-[#475569] uppercase tracking-wide">
+        <label htmlFor={htmlFor} className="text-[13px] font-600 text-[#475569]">
           {label}
         </label>
+        {required && (
+          <span className="text-[13px] font-600 text-[#DC2626]">*</span>
+        )}
         {optional && (
           <span className="text-[11px] font-500 text-[#94A3B8]">optional</span>
         )}
@@ -82,20 +75,18 @@ function Field({
 
 // ─── Input base styles ─────────────────────────────────────────────────────────
 const inputBase =
-  "w-full bg-[#F4F6F9] rounded-[11px] px-4 h-12 text-[15px] font-500 text-[#0F172A] placeholder:text-[#C9D4DF] outline-none border transition-colors";
+  "w-full bg-white rounded-[12px] px-4 h-[48px] text-[15px] font-500 text-[#0F172A] placeholder:text-[#C9D4DF] outline-none border transition-colors";
 
-const inputIdle   = "border-[#E1E7EF] focus:border-[#0A86A0] focus:bg-white";
+const inputIdle   = "border-[#E1E7EF] focus:border-[#0A86A0]";
 const inputError  = "border-[#FECACA] bg-[#FFF5F5] focus:border-[#DC2626]";
 
-// ─── Create Tour Screen ───────────────────────────────────────────────────────
+// ─── Create Trip Screen ───────────────────────────────────────────────────────
 export default function CreateTour({ onBack, onCreate }: {
   onBack:    () => void;
   onCreate:  (data: CreateTourData) => void;
 }) {
   const nameId       = useId();
   const destId       = useId();
-  const startId      = useId();
-  const endId        = useId();
   const budgetId     = useId();
   const currencyId   = useId();
   const noteId       = useId();
@@ -110,6 +101,7 @@ export default function CreateTour({ onBack, onCreate }: {
     note:        "",
   });
 
+  const [spendingStyle, setSpendingStyle] = useState<SpendingStyle>("pay-as-you-go");
   const [errors, setErrors]     = useState<FieldError>({});
   const [touched, setTouched]   = useState<Set<string>>(new Set());
 
@@ -127,14 +119,14 @@ export default function CreateTour({ onBack, onCreate }: {
     const errs: FieldError = {};
 
     if (!data.name.trim()) {
-      errs.name = "Tour name is required.";
+      errs.name = "Trip name is required.";
     }
 
     if (data.startDate && data.endDate && data.endDate < data.startDate) {
       errs.endDate = "End date can't be before start date.";
     }
 
-    if (data.budget !== "" && (isNaN(Number(data.budget)) || Number(data.budget) <= 0)) {
+    if (spendingStyle === "budget" && data.budget !== "" && (isNaN(Number(data.budget)) || Number(data.budget) <= 0)) {
       errs.budget = "Budget must be greater than zero.";
     }
 
@@ -156,29 +148,29 @@ export default function CreateTour({ onBack, onCreate }: {
     <div className="h-full bg-[#F4F6F9] flex flex-col overflow-hidden">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="bg-white border-b border-[#E1E7EF] safe-top shrink-0">
-        <div className="flex items-center gap-1 px-2 h-[52px]">
+      <div className="bg-white shrink-0">
+        <div className="flex items-center justify-center px-4 h-[56px] relative safe-top">
           <button
             onClick={onBack}
-            className="pressable w-10 h-10 flex items-center justify-center rounded-full text-[#475569]"
+            className="pressable absolute left-4 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-full text-[#475569] hover:bg-[#F4F6F9] transition-colors"
             aria-label="Go back"
           >
-            <IconChevronLeft size={22} />
+            <HugeiconsIcon icon={ArrowLeft01Icon} size={22} color="currentColor" strokeWidth={1.75} />
           </button>
-          <h1 className="text-[16px] font-700 text-[#0F172A] leading-none">Create tour</h1>
+          <h1 className="text-[16px] font-700 text-[#0F172A] leading-none">New trip</h1>
         </div>
       </div>
 
       {/* ── Scrollable form ─────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto">
-        <div className="px-4 pt-6 pb-6 space-y-5 max-w-[520px] mx-auto w-full">
+        <div className="px-5 pt-6 pb-6 space-y-5 max-w-[520px] mx-auto w-full">
 
-          {/* Tour name */}
-          <Field label="Tour name" error={errors.name} htmlFor={nameId}>
+          {/* Trip name */}
+          <Field label="Trip name" required error={errors.name} htmlFor={nameId}>
             <input
               id={nameId}
               type="text"
-              placeholder="Cox's Bazar Getaway"
+              placeholder="Tour de Rangamati"
               value={form.name}
               onChange={set("name")}
               onBlur={() => { touch("name"); validate(form); }}
@@ -188,47 +180,56 @@ export default function CreateTour({ onBack, onCreate }: {
 
           {/* Destination */}
           <Field label="Destination" optional htmlFor={destId}>
-            <input
-              id={destId}
-              type="text"
-              placeholder="Cox's Bazar"
-              value={form.destination}
-              onChange={set("destination")}
-              className={`${inputBase} ${inputIdle}`}
-            />
+            <div className={`flex items-center bg-white rounded-[12px] border transition-colors h-[48px] ${inputIdle}`}>
+              <span className="pl-3.5 text-[#0A86A0] shrink-0">
+                <HugeiconsIcon icon={MapPinIcon} size={18} color="currentColor" strokeWidth={1.75} />
+              </span>
+              <input
+                id={destId}
+                type="text"
+                placeholder="Rangamati"
+                value={form.destination}
+                onChange={set("destination")}
+                className="flex-1 bg-transparent pl-2.5 pr-4 h-full text-[15px] font-500 text-[#0F172A] placeholder:text-[#C9D4DF] outline-none"
+              />
+            </div>
           </Field>
 
-          {/* Dates row */}
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Start date" htmlFor={startId}>
-              <input
-                id={startId}
-                type="date"
-                value={form.startDate}
-                onChange={set("startDate")}
-                onBlur={() => { touch("startDate"); validate(form); }}
-                className={`${inputBase} ${inputIdle} [color-scheme:light]`}
-                style={{ colorScheme: "light" }}
-              />
-            </Field>
-            <Field label="End date" error={errors.endDate} htmlFor={endId}>
-              <input
-                id={endId}
-                type="date"
-                value={form.endDate}
-                onChange={set("endDate")}
-                onBlur={() => { touch("endDate"); validate({ ...form, endDate: form.endDate }); }}
-                min={form.startDate || undefined}
-                className={`${inputBase} ${errors.endDate ? inputError : inputIdle} [color-scheme:light]`}
-                style={{ colorScheme: "light" }}
-              />
-            </Field>
+          {/* Spending style */}
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[13px] font-600 text-[#475569]">Spending style</span>
+            <div className="flex bg-[#F4F6F9] rounded-[12px] p-1 border border-[#E1E7EF]">
+              <button
+                type="button"
+                onClick={() => setSpendingStyle("pay-as-you-go")}
+                className={`flex-1 h-[42px] rounded-[10px] text-[14px] font-600 transition-all ${
+                  spendingStyle === "pay-as-you-go"
+                    ? "bg-[#0A86A0] text-white shadow-[0_1px_4px_rgba(10,134,160,0.18)]"
+                    : "text-[#64748B] hover:text-[#475569]"
+                }`}
+                aria-pressed={spendingStyle === "pay-as-you-go"}
+              >
+                Pay as you go
+              </button>
+              <button
+                type="button"
+                onClick={() => setSpendingStyle("budget")}
+                className={`flex-1 h-[42px] rounded-[10px] text-[14px] font-600 transition-all ${
+                  spendingStyle === "budget"
+                    ? "bg-[#0A86A0] text-white shadow-[0_1px_4px_rgba(10,134,160,0.18)]"
+                    : "text-[#64748B] hover:text-[#475569]"
+                }`}
+                aria-pressed={spendingStyle === "budget"}
+              >
+                Set a budget
+              </button>
+            </div>
           </div>
 
-          {/* Budget + Currency row */}
-          <div className="grid grid-cols-[1fr_auto] gap-3 items-start">
-            <Field label="Estimated budget" optional error={errors.budget} htmlFor={budgetId}>
-              <div className={`flex items-center bg-[#F4F6F9] rounded-[11px] border transition-colors h-12 ${errors.budget ? "border-[#FECACA] bg-[#FFF5F5]" : "border-[#E1E7EF] focus-within:border-[#0A86A0] focus-within:bg-white"}`}>
+          {/* Budget field — only visible when "Set a budget" is selected */}
+          {spendingStyle === "budget" && (
+            <Field label="Trip budget" error={errors.budget} htmlFor={budgetId}>
+              <div className={`flex items-center bg-white rounded-[12px] border transition-colors h-[48px] ${errors.budget ? "border-[#FECACA] bg-[#FFF5F5]" : "border-[#E1E7EF] focus-within:border-[#0A86A0]"}`}>
                 <span className="pl-4 text-[16px] font-600 text-[#94A3B8] shrink-0 select-none">
                   {selectedCurrency.symbol}
                 </span>
@@ -236,12 +237,27 @@ export default function CreateTour({ onBack, onCreate }: {
                   id={budgetId}
                   type="number"
                   inputMode="decimal"
-                  placeholder="0"
+                  placeholder="50,000"
                   value={form.budget}
                   onChange={set("budget")}
                   onBlur={() => { touch("budget"); validate(form); }}
                   className="flex-1 bg-transparent pl-1.5 pr-4 h-full text-[15px] font-500 text-[#0F172A] placeholder:text-[#C9D4DF] outline-none num"
                 />
+                <div className="relative shrink-0 pr-2">
+                  <select
+                    id={currencyId}
+                    value={form.currency}
+                    onChange={set("currency")}
+                    className="appearance-none bg-[#F4F6F9] border border-[#E1E7EF] rounded-[8px] pl-3 pr-7 py-1.5 text-[13px] font-600 text-[#0F172A] outline-none focus:border-[#0A86A0] transition-colors cursor-pointer"
+                  >
+                    {CURRENCIES.map((c) => (
+                      <option key={c.code} value={c.code}>{c.code}</option>
+                    ))}
+                  </select>
+                  <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[#94A3B8]">
+                    <HugeiconsIcon icon={ChevronDownIcon} size={14} color="currentColor" strokeWidth={2} />
+                  </span>
+                </div>
               </div>
               {errors.budget && (
                 <p className="text-[12px] font-500 text-[#DC2626] flex items-center gap-1 mt-1">
@@ -252,31 +268,13 @@ export default function CreateTour({ onBack, onCreate }: {
                 </p>
               )}
             </Field>
-
-            <Field label="Currency" htmlFor={currencyId}>
-              <div className="relative h-12">
-                <select
-                  id={currencyId}
-                  value={form.currency}
-                  onChange={set("currency")}
-                  className="appearance-none w-full h-full bg-[#F4F6F9] border border-[#E1E7EF] rounded-[11px] px-3 pr-8 text-[14px] font-600 text-[#0F172A] outline-none focus:border-[#0A86A0] focus:bg-white transition-colors cursor-pointer"
-                >
-                  {CURRENCIES.map((c) => (
-                    <option key={c.code} value={c.code}>{c.label}</option>
-                  ))}
-                </select>
-                <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8]">
-                  <IconChevronDown size={15} />
-                </span>
-              </div>
-            </Field>
-          </div>
+          )}
 
           {/* Note */}
           <Field label="Note" optional htmlFor={noteId}>
             <textarea
               id={noteId}
-              placeholder="Anything the group should know…"
+              placeholder="Anything your group should know?"
               value={form.note}
               onChange={set("note")}
               rows={3}
@@ -284,37 +282,24 @@ export default function CreateTour({ onBack, onCreate }: {
             />
           </Field>
 
-          {/* ── Creator ownership strip ───────────────────────────────────── */}
-          <div className="pt-1">
-            <div className="border-t border-[#E1E7EF] mb-5" />
-            <div className="flex items-center gap-3 bg-white border border-[#E1E7EF] rounded-[12px] px-4 py-3">
-              <div
-                className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[12px] font-700 shrink-0"
-                style={{ backgroundColor: "#0A86A0" }}
-              >
-                RI
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[14px] font-700 text-[#0F172A] leading-snug">Rafi</p>
-                <p className="text-[12px] text-[#94A3B8] font-500 mt-0.5">Owner · You</p>
-              </div>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-700 bg-[#EFF9FB] text-[#0A7490] border border-[#A3DFE9]">
-                Added automatically
-              </span>
-            </div>
+          {/* ── Owner info strip ──────────────────────────────────────────── */}
+          <div className="flex items-center gap-2.5 pt-1">
+            <span className="text-[#94A3B8]">
+              <HugeiconsIcon icon={UserIcon} size={16} color="currentColor" strokeWidth={1.75} />
+            </span>
+            <p className="text-[13px] font-500 text-[#94A3B8]">You'll be added as the trip owner.</p>
           </div>
 
         </div>
       </div>
 
       {/* ── Sticky bottom CTA ────────────────────────────────────────────────── */}
-      <div className="bg-white border-t border-[#E1E7EF] px-4 py-3 safe-bottom shrink-0">
+      <div className="bg-white border-t border-[#E1E7EF] px-5 py-3 safe-bottom shrink-0">
         <button
           onClick={handleSubmit}
-          className="pressable w-full flex items-center justify-center h-13 rounded-[13px] bg-[#0A86A0] text-white font-700 text-[15px] shadow-[0_2px_10px_rgba(10,134,160,0.18)] active:scale-[0.985] transition-all"
-          style={{ height: 52 }}
+          className="pressable w-full flex items-center justify-center h-[52px] rounded-[14px] bg-[#0A86A0] text-white font-700 text-[16px] shadow-[0_2px_10px_rgba(10,134,160,0.18)] active:scale-[0.985] transition-all"
         >
-          Create tour
+          Create trip
         </button>
       </div>
     </div>

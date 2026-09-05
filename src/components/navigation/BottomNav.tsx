@@ -2,7 +2,6 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Home01Icon,
   MapPinIcon,
-  Add01Icon,
   Invoice01Icon,
   Settings01Icon,
 } from "@hugeicons/core-free-icons";
@@ -24,24 +23,16 @@ const NAV_ITEMS: NavItem[] = [
 interface BottomNavProps {
   activeTab: Tab;
   onTabChange: (tab: Tab) => void;
-  onAddExpense: () => void;
-  addExpenseEnabled?: boolean;
 }
 
 export default function BottomNav({
   activeTab,
   onTabChange,
-  onAddExpense,
-  addExpenseEnabled = true,
 }: BottomNavProps) {
   return (
-    <div className="flex items-stretch h-[60px] relative">
-      {NAV_ITEMS.map((item, idx) => {
+    <div className="flex items-stretch h-[60px]">
+      {NAV_ITEMS.map((item) => {
         const isActive = item.id === activeTab;
-
-        if (idx === 2) {
-          return <div key="spacer" className="flex-1" />;
-        }
 
         return (
           <button
@@ -69,25 +60,6 @@ export default function BottomNav({
           </button>
         );
       })}
-
-      <button
-        onClick={onAddExpense}
-        disabled={!addExpenseEnabled}
-        className={`pressable absolute left-1/2 -translate-x-1/2 -top-3 w-[48px] h-[48px] rounded-full flex items-center justify-center transition-all ${
-          addExpenseEnabled
-            ? "bg-[#0A86A0] text-white shadow-[0_2px_12px_rgba(10,134,160,0.25)] active:scale-95"
-            : "bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed"
-        }`}
-        aria-label="Add expense"
-        aria-disabled={!addExpenseEnabled}
-      >
-        <HugeiconsIcon
-          icon={Add01Icon}
-          size={22}
-          color="currentColor"
-          strokeWidth={2}
-        />
-      </button>
     </div>
   );
 }

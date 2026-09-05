@@ -318,7 +318,7 @@ type Screen = "tourList" | "createTour" | "inviteMembers" | "inviteAccept" | "to
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [screen, setScreen]                   = useState<Screen>(DEMO_INVITE_MODE ? "inviteAccept" : "tourList");
+  const [screen, setScreen]                   = useState<Screen>(DEMO_INVITE_MODE ? "inviteAccept" : "tour");
   const [activeTourId, setActiveTourId]       = useState<string | null>(null);
 
   if (screen === "inviteAccept") {
@@ -338,10 +338,10 @@ export default function App() {
   if (screen === "inviteMembers") {
     return <InviteMembers tourName={TOUR.name} tourDates={TOUR.dates} onBack={() => setScreen("createTour")} onDone={() => setScreen("tour")} />;
   }
-  if (screen === "tourList" || !activeTourId) {
+  if (screen === "tourList") {
     return <TourList onSelectTour={(id: string) => { setActiveTourId(id); setScreen("tour"); }} onNewTour={() => setScreen("createTour")} />;
   }
-  return <AuthenticatedApp isEmpty={activeTourId === "new"} onNewTour={() => setScreen("createTour")} />;
+  return <AuthenticatedApp isEmpty={!activeTourId || activeTourId === "new"} onNewTour={() => setScreen("createTour")} />;
 }
 
 function AuthenticatedApp({ isEmpty = false, onNewTour }: { isEmpty?: boolean; onNewTour: () => void }) {
@@ -518,8 +518,6 @@ function AuthenticatedApp({ isEmpty = false, onNewTour }: { isEmpty?: boolean; o
           <BottomNav
             activeTab={tab}
             onTabChange={setTab}
-            onAddExpense={() => setShowAddExpense(true)}
-            addExpenseEnabled={!isEmpty}
           />
         </div>
       </div>
