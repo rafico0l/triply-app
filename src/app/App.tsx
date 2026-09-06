@@ -14,6 +14,7 @@ import SettlementHistoryView from "../features/settlements/SettlementHistoryView
 import SettlementView from "../features/settlements/SettlementView";
 import HomeView from "../features/home/HomeView";
 import TripsView from "../features/trips/TripsView";
+import TripDetailsView from "../features/trips/TripDetailsView";
 
 const DEMO_INVITE_MODE = false;
 
@@ -341,10 +342,10 @@ export default function App() {
   if (screen === "tourList") {
     return <TourList onSelectTour={(id: string) => { setActiveTourId(id); setScreen("tour"); }} onNewTour={() => setScreen("createTour")} />;
   }
-  return <AuthenticatedApp isEmpty={!activeTourId || activeTourId === "new"} onNewTour={() => setScreen("createTour")} />;
+  return <AuthenticatedApp isEmpty={!activeTourId || activeTourId === "new"} onNewTour={() => setScreen("createTour")} onSelectTour={(id: string) => setActiveTourId(id)} />;
 }
 
-function AuthenticatedApp({ isEmpty = false, onNewTour }: { isEmpty?: boolean; onNewTour: () => void }) {
+function AuthenticatedApp({ isEmpty = false, onNewTour, onSelectTour }: { isEmpty?: boolean; onNewTour: () => void; onSelectTour?: (id: string) => void }) {
   const [members,               setMembers]               = useState<Member[]>(() => computeMembers(MEMBERS_INIT, EXPENSES_INIT, RECORDED_SETTLEMENTS_INIT));
   const [expenses,              setExpenses]              = useState<Expense[]>(EXPENSES_INIT);
   const [recordedSettlements,   setRecordedSettlements]   = useState<RecordedSettlement[]>(RECORDED_SETTLEMENTS_INIT);
@@ -355,6 +356,7 @@ function AuthenticatedApp({ isEmpty = false, onNewTour }: { isEmpty?: boolean; o
   const [subScreen,           setSubScreen]           = useState<SubScreen>(null);
   const [scrolled,            setScrolled]            = useState(false);
   const [membersActionsOpen,  setMembersActionsOpen]  = useState(false);
+  const [tripDetailId,        setTripDetailId]        = useState<string | null>(null);
 
   const mobileScrollRef = useRef<HTMLDivElement>(null);
   const handleMobileScroll = () => setScrolled((mobileScrollRef.current?.scrollTop ?? 0) > 6);
@@ -452,7 +454,7 @@ function AuthenticatedApp({ isEmpty = false, onNewTour }: { isEmpty?: boolean; o
   const PageContent = () => (
     <>
       {tab === "home"       && <HomeView       expenses={expenses} members={members} onTabChange={setTab} empty={isEmpty} onAddExpense={() => setShowAddExpense(true)} onSettle={() => setTab("settlement")} />}
-      {tab === "trips"      && <TripsView onNewTour={onNewTour} />}
+      {tab === "trips"      && <TripsView onNewTour={onNewTour} onBack={() => setTab("home")} onSelectTour={(id) => setTripDetailId(id)} />}
       {tab === "expenses"   && <ExpensesView   expenses={expenses} members={members} onTapExpense={(id) => setSubScreen({ type: "expense-detail", id })} />}
       {tab === "members"    && (
         <MembersView
@@ -627,6 +629,21 @@ function AuthenticatedApp({ isEmpty = false, onNewTour }: { isEmpty?: boolean; o
           onDeleteSettlement={handleDeleteSettlement}
           onBack={() => setSubScreen(null)}
         />
+      )}
+
+      {/* ── Trip Details ───────────────────────────────────────────────────── */}
+      {tripDetailId && (
+        <div className="fixed inset-0 z-50 bg-[#F8FAFC] overflow-y-auto">
+          <div className="safe-top" />
+          <TripDetailsView
+            tripId={tripDetailId}
+            onBack={() => setTripDetailId(null)}
+            onSeeAllExpenses={() => {
+              setTripDetailId(null);
+              setTab("expenses");
+            }}
+          />
+        </div>
       )}
     </div>
   );

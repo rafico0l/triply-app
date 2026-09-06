@@ -1,5 +1,5 @@
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Notification03Icon } from "@hugeicons/core-free-icons";
+import { ArrowLeft01Icon, PlusIcon } from "@hugeicons/core-free-icons";
 import TripCard, { type Tour } from "./components/TripCard";
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
@@ -45,98 +45,115 @@ const TOURS: Tour[] = [
 // ─── Section Label ────────────────────────────────────────────────────────────
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[11px] font-700 text-[#94A3B8] uppercase tracking-wider px-1 mb-2">
+    <p className="text-[11px] font-700 text-[#94A3B8] uppercase tracking-wider px-1 mb-2.5">
       {children}
     </p>
   );
 }
 
 // ─── Trips View ───────────────────────────────────────────────────────────────
-export default function TripsView({ onNewTour }: { onNewTour: () => void }) {
-  const activeUpcoming = TOURS.filter(
-    (t) => t.status === "active" || t.status === "upcoming"
-  );
-  const completed = TOURS.filter((t) => t.status === "completed");
+export default function TripsView({
+  onNewTour,
+  onBack,
+  onSelectTour,
+}: {
+  onNewTour: () => void;
+  onBack?: () => void;
+  onSelectTour?: (id: string) => void;
+}) {
+  const activeTours = TOURS.filter((t) => t.status === "active");
+  const upcomingTours = TOURS.filter((t) => t.status === "upcoming");
+  const completedTours = TOURS.filter((t) => t.status === "completed");
 
   return (
-    <div>
-      {/* ── Greeting Header ─────────────────────────────────────────────── */}
-      <div className="px-4 pt-2 pb-3">
-        <div className="flex items-center gap-3">
-          <div
-            className="w-[42px] h-[42px] rounded-full flex items-center justify-center font-700 text-white text-[15px] shrink-0"
-            style={{ backgroundColor: "#0A86A0" }}
-          >
-            RA
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[12px] text-[#94A3B8] font-500 leading-none">
-              Good evening,
-            </p>
-            <p className="text-[18px] font-700 text-[#0F172A] leading-snug mt-0.5 truncate">
-              Raficool
-            </p>
-          </div>
+    <div className="relative min-h-full pb-20">
+      {/* ── Page Header ─────────────────────────────────────────────────── */}
+      <div className="bg-white border-b border-[#E1E7EF] sticky top-0 z-10 safe-top">
+        <div className="flex items-center justify-center px-4 h-[56px] relative">
           <button
-            className="pressable relative w-10 h-10 flex items-center justify-center rounded-full text-[#475569] hover:bg-[#F4F6F9]"
-            aria-label="Notifications"
+            onClick={onBack}
+            className="pressable absolute left-4 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-full text-[#475569] hover:bg-[#F4F6F9] transition-colors"
+            aria-label="Go back"
           >
             <HugeiconsIcon
-              icon={Notification03Icon}
+              icon={ArrowLeft01Icon}
               size={22}
               color="currentColor"
-              strokeWidth={1.5}
+              strokeWidth={1.75}
             />
-            <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#0A86A0] border-2 border-white" />
           </button>
+          <h1 className="text-[17px] font-700 text-[#0F172A] leading-none text-center">
+            Your trips
+          </h1>
         </div>
       </div>
 
-      {/* ── Title Row ───────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-4 pb-4">
-        <h2 className="text-[17px] font-700 text-[#0F172A]">Your trips</h2>
-        <button
-          onClick={onNewTour}
-          className="pressable flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#EFF9FB] text-[#0A86A0] text-[13px] font-700 border border-[#A3DFE9]"
-        >
-          <svg
-            width={14}
-            height={14}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2.5}
-            strokeLinecap="round"
-          >
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          New trip
-        </button>
+      {/* ── Content Sections ────────────────────────────────────────────── */}
+      <div className="px-4 pt-4 space-y-6 max-w-[600px] mx-auto w-full">
+        {/* ACTIVE TRIP */}
+        {activeTours.length > 0 && (
+          <section>
+            <SectionLabel>ACTIVE TRIP</SectionLabel>
+            <div className="space-y-2.5">
+              {activeTours.map((tour) => (
+                <TripCard
+                  key={tour.id}
+                  tour={tour}
+                  onSelect={onSelectTour}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* UPCOMING */}
+        {upcomingTours.length > 0 && (
+          <section>
+            <SectionLabel>UPCOMING</SectionLabel>
+            <div className="space-y-2.5">
+              {upcomingTours.map((tour) => (
+                <TripCard
+                  key={tour.id}
+                  tour={tour}
+                  onSelect={onSelectTour}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* COMPLETED */}
+        {completedTours.length > 0 && (
+          <section>
+            <SectionLabel>COMPLETED</SectionLabel>
+            <div className="space-y-2.5">
+              {completedTours.map((tour) => (
+                <TripCard
+                  key={tour.id}
+                  tour={tour}
+                  onSelect={onSelectTour}
+                />
+              ))}
+            </div>
+          </section>
+        )}
       </div>
 
-      {/* ── Active & Upcoming ───────────────────────────────────────────── */}
-      {activeUpcoming.length > 0 && (
-        <section className="px-4 mb-5">
-          <SectionLabel>Active & Upcoming</SectionLabel>
-          <div className="space-y-2">
-            {activeUpcoming.map((tour) => (
-              <TripCard key={tour.id} tour={tour} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ── Completed ───────────────────────────────────────────────────── */}
-      {completed.length > 0 && (
-        <section className="px-4 mb-5">
-          <SectionLabel>Completed</SectionLabel>
-          <div className="space-y-2">
-            {completed.map((tour) => (
-              <TripCard key={tour.id} tour={tour} />
-            ))}
-          </div>
-        </section>
-      )}
+      {/* ── Floating New Trip Action ────────────────────────────────────── */}
+      <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+60px+16px)] left-0 right-0 z-20 flex justify-center pointer-events-none">
+        <button
+          onClick={onNewTour}
+          className="pressable pointer-events-auto inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#0A86A0] text-white font-700 text-[14px] shadow-[0_4px_16px_rgba(10,134,160,0.3)] hover:bg-[#087288] transition-colors active:scale-95"
+        >
+          <HugeiconsIcon
+            icon={PlusIcon}
+            size={16}
+            color="currentColor"
+            strokeWidth={2.5}
+          />
+          <span>New trip</span>
+        </button>
+      </div>
     </div>
   );
 }
