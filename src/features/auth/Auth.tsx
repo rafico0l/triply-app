@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, type ReactNode } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowLeft01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { signIn, signUp } from "../../lib/auth";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type AuthScreen = "signin" | "signup" | "otp" | "verification-success" | "forgot" | "reset-sent";
@@ -361,11 +362,10 @@ function SignInScreen({
     if (Object.keys(e).length) { setErrors(e); return; }
     setErrors({});
     setLoading(true);
-    await sleep(900);
+    const { error } = await signIn(mobile, password);
     setLoading(false);
-    // Demo: treat a specific number as "wrong password" to show error state.
-    if (mobile === "1700000000") {
-      setAuthErr("Incorrect mobile number or password. Please try again.");
+    if (error) {
+      setAuthErr(error);
       return;
     }
     onAuthenticate();
@@ -437,16 +437,17 @@ function SignInScreen({
 function CreateAccountScreen({
   onAuthenticate,
   onSignIn,
-  onContinueToOtp,
+  onEmailConfirmationRequired,
 }: {
   onAuthenticate: () => void;
   onSignIn: () => void;
-  onContinueToOtp?: (mobile: string) => void;
+  onEmailConfirmationRequired?: () => void;
 }) {
   const [name,     setName]     = useState("");
   const [mobile,   setMobile]   = useState("");
   const [password, setPassword] = useState("");
   const [errors,   setErrors]   = useState<{ name?: string; mobile?: string; password?: string }>({});
+  const [authErr,  setAuthErr]  = useState("");
   const [loading,  setLoading]  = useState(false);
 
   const validate = () => {
@@ -469,14 +470,23 @@ function CreateAccountScreen({
 
   const handleSubmit = async (ev: React.FormEvent) => {
     ev.preventDefault();
+    setAuthErr("");
     const e = validate();
     if (Object.keys(e).length) { setErrors(e); return; }
     setErrors({});
     setLoading(true);
-    await sleep(600);
+    const { error, user } = await signUp(name.trim(), mobile, password);
     setLoading(false);
-    if (onContinueToOtp) {
-      onContinueToOtp(mobile);
+    if (error) {
+      setAuthErr(error);
+      return;
+    }
+    // If user exists with a session, account is confirmed — proceed.
+    // If user exists but no session, email confirmation is required.
+    if (user) {
+      onAuthenticate();
+    } else if (onEmailConfirmationRequired) {
+      onEmailConfirmationRequired();
     } else {
       onAuthenticate();
     }
@@ -495,6 +505,8 @@ function CreateAccountScreen({
 
       {/* Form */}
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4 mt-7">
+        {authErr && <AuthError message={authErr} />}
+
         <FormField label="Your name *" error={errors.name}>
           <input
             type="text"
@@ -957,7 +969,6 @@ function ResetEmailSentScreen({
 export function AuthFlow({ onAuthenticate }: { onAuthenticate: () => void }) {
   const [screen,        setScreen]        = useState<AuthScreen>("signin");
   const [resetEmail,    setResetEmail]    = useState("");
-  const [pendingMobile, setPendingMobile] = useState("");
 
   return (
     <>
@@ -972,22 +983,12 @@ export function AuthFlow({ onAuthenticate }: { onAuthenticate: () => void }) {
         <CreateAccountScreen
           onAuthenticate={onAuthenticate}
           onSignIn={() => setScreen("signin")}
-          onContinueToOtp={(mobile) => {
-            setPendingMobile(mobile);
-            setScreen("otp");
-          }}
-        />
-      )}
-      {screen === "otp" && (
-        <OtpVerificationScreen
-          mobile={pendingMobile}
-          onBack={() => setScreen("signup")}
-          onSuccess={() => setScreen("verification-success")}
+          onEmailConfirmationRequired={() => setScreen("verification-success")}
         />
       )}
       {screen === "verification-success" && (
         <VerificationSuccessScreen
-          onContinue={onAuthenticate}
+          onContinue={() => setScreen("signin")}
         />
       )}
       {screen === "forgot" && (

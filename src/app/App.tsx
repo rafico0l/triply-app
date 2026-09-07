@@ -18,6 +18,8 @@ import TripDetailsView from "../features/trips/TripDetailsView";
 import { computeAllMemberFinancials, toMajorUnits } from "../domain/finance";
 import type { Trip } from "../domain/trip";
 import { INITIAL_TRIPS } from "../domain/tripSeed";
+import { signOut, getCurrentUser } from "../lib/auth";
+import type { User } from "@supabase/supabase-js";
 
 const DEMO_INVITE_MODE = false;
 
@@ -55,6 +57,7 @@ type SubScreen =
   | { type: "expense-detail"; id: string }
   | { type: "member-detail"; id: string }
   | { type: "settlement-history" }
+  | { type: "members" }
   | null;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -262,11 +265,33 @@ import ExpensesView from "../features/expenses/ExpensesView";
 type Screen = "tourList" | "createTour" | "inviteMembers" | "inviteAccept" | "tour";
 
 export default function App() {
+  const [authLoading,    setAuthLoading]    = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser,     setCurrentUser]     = useState<User | null>(null);
   const [screen, setScreen]                   = useState<Screen>(DEMO_INVITE_MODE ? "inviteAccept" : "tour");
   const [activeTourId, setActiveTourId]       = useState<string | null>(null);
   const [trips, setTrips]                     = useState<Trip[]>(INITIAL_TRIPS);
   const [currentTripId, setCurrentTripId]     = useState<string>("trip-1");
+
+  // ── Session restoration on mount ────────────────────────────────────────────
+  useEffect(() => {
+    let mounted = true;
+    getCurrentUser().then((user) => {
+      if (!mounted) return;
+      setCurrentUser(user);
+      setIsAuthenticated(!!user);
+      setAuthLoading(false);
+    });
+    return () => { mounted = false; };
+  }, []);
+
+  // ── Sign out handler ────────────────────────────────────────────────────────
+  const handleSignOut = async () => {
+    await signOut();
+    setCurrentUser(null);
+    setIsAuthenticated(false);
+    setScreen("tour");
+  };
 
   function handleCreateTour(data: CreateTourData, coverImageUrl: string | null) {
     const startDate = data.startDate;
@@ -323,6 +348,16 @@ export default function App() {
       />
     );
   }
+  if (authLoading) {
+    return (
+      <div className="h-[100dvh] flex items-center justify-center bg-[#F4F6F9]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-[#0A86A0] border-t-transparent rounded-full animate-spin" />
+          <p className="text-[13px] font-500 text-[#94A3B8]">Loading…</p>
+        </div>
+      </div>
+    );
+  }
   if (!isAuthenticated) return <AuthFlow onAuthenticate={() => setIsAuthenticated(true)} />;
   if (screen === "createTour") {
     return <CreateTour onBack={() => setScreen("tourList")} onCreate={handleCreateTour} />;
@@ -341,16 +376,20 @@ export default function App() {
     isEmpty={!activeTourId || activeTourId === "new"}
     onNewTour={() => setScreen("createTour")}
     onSelectTour={(id: string) => setActiveTourId(id)}
+    onSignOut={handleSignOut}
+    currentUser={currentUser}
   />;
 }
 
 function AuthenticatedApp({
-  isEmpty = false, onNewTour, onSelectTour,
+  isEmpty = false, onNewTour, onSelectTour, onSignOut, currentUser,
   trips, setTrips, currentTripId, setCurrentTripId,
 }: {
   isEmpty?: boolean;
   onNewTour: () => void;
   onSelectTour?: (id: string) => void;
+  onSignOut: () => void;
+  currentUser: User | null;
   trips: Trip[];
   setTrips: React.Dispatch<React.SetStateAction<Trip[]>>;
   currentTripId: string;
@@ -368,7 +407,10 @@ function AuthenticatedApp({
   const mobileScrollRef = useRef<HTMLDivElement>(null);
   const handleMobileScroll = () => setScrolled((mobileScrollRef.current?.scrollTop ?? 0) > 6);
 
-  const currentTrip = trips.find((t) => t.id === currentTripId) ?? trips[0];
+  const currentTrip = trips.find((t) => t.id === currentTripId) ?? trips[0] ?? {
+    id: "", name: "", dates: "", status: "active" as const,
+    members: [], expenses: [], settlements: [],
+  };
   const currentMembers = computeMembers(currentTrip.members, currentTrip.expenses, currentTrip.settlements);
   const currentExpenses = currentTrip.expenses;
   const currentSettlements = currentTrip.settlements;
@@ -437,6 +479,39 @@ function AuthenticatedApp({
     setSubScreen(null);
   }
 
+  function computeDatesDisplay(start?: string, end?: string): string {
+    if (!start) return "";
+    const startStr = new Date(start + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    if (!end || end === start) return startStr;
+    const endStr = new Date(end + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    return `${startStr}\u2013${endStr}`;
+  }
+
+  function handleSaveTrip(patch: { name: string; startDate?: string; endDate?: string; budget?: number }) {
+    updateCurrentTrip((t) => ({
+      ...t,
+      name: patch.name,
+      startDate: patch.startDate,
+      endDate: patch.endDate,
+      dates: computeDatesDisplay(patch.startDate, patch.endDate),
+      budget: patch.budget,
+    }));
+  }
+
+  function handleDeleteTrip() {
+    const remaining = trips.filter((t) => t.id !== currentTripId);
+    setTrips(remaining);
+    setTripDetailId(null);
+    if (remaining.length > 0) {
+      const next = remaining[0];
+      setCurrentTripId(next.id);
+      onSelectTour?.(next.id);
+    } else {
+      setCurrentTripId("");
+    }
+    setTab("trips");
+  }
+
   const headerConfig: Record<Tab, { title: string; subtitle?: string; showBack: boolean }> = {
     home:       { title: TOUR.name, subtitle: TOUR.dates, showBack: false },
     trips:      { title: "Trips",                        showBack: false },
@@ -476,11 +551,24 @@ function AuthenticatedApp({
         />
       )}
       {tab === "settings"   && (
-        <div className="px-4 pt-4">
-          <div className="bg-white rounded-[16px] border border-[#E1E7EF] px-5 py-6 flex flex-col items-center text-center gap-3">
-            <p className="text-[14px] font-700 text-[#0F172A]">Settings</p>
-            <p className="text-[13px] text-[#94A3B8] font-500">Coming soon</p>
-          </div>
+        <div className="px-4 pt-4 space-y-3">
+          {/* Current user info */}
+          {currentUser && (
+            <div className="bg-white rounded-[16px] border border-[#E1E7EF] px-5 py-4">
+              <p className="text-[11px] font-600 text-[#94A3B8] uppercase tracking-wide mb-2">Account</p>
+              <p className="text-[15px] font-600 text-[#0F172A]">{currentUser.user_metadata?.name ?? currentUser.email ?? "User"}</p>
+              <p className="text-[13px] font-500 text-[#94A3B8] mt-0.5">{currentUser.email ?? ""}</p>
+            </div>
+          )}
+
+          {/* Sign out */}
+          <button
+            onClick={onSignOut}
+            className="w-full bg-white rounded-[16px] border border-[#E1E7EF] px-5 py-4 text-left"
+          >
+            <p className="text-[15px] font-600 text-[#DC2626]">Sign out</p>
+            <p className="text-[13px] font-500 text-[#94A3B8] mt-0.5">Sign out of your account</p>
+          </button>
         </div>
       )}
     </>
@@ -632,18 +720,47 @@ function AuthenticatedApp({
         />
       )}
 
+      {/* ── Members View ───────────────────────────────────────────────────── */}
+      {subScreen?.type === "members" && (
+        <div className="fixed inset-0 z-50 bg-[#F4F6F9] flex flex-col overflow-hidden" style={{ animation: "slideInFromRight 220ms cubic-bezier(0.32,0.72,0,1)" }}>
+          <div className="bg-white border-b border-[#E1E7EF] safe-top shrink-0">
+            <div className="flex items-center gap-1 px-2 h-[52px] max-w-[720px] mx-auto w-full">
+              <button onClick={() => setSubScreen(null)} className="pressable w-10 h-10 flex items-center justify-center rounded-full text-[#475569]" aria-label="Go back">
+                <IconChevronLeft size={22} />
+              </button>
+              <h1 className="flex-1 text-[16px] font-700 text-[#0F172A] truncate px-1">Members</h1>
+              <button onClick={() => setMembersActionsOpen(true)} className="pressable w-10 h-10 flex items-center justify-center rounded-full text-[#0A86A0]" aria-label="Add member">
+                <IconPlus size={19} />
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <MembersView
+              members={currentMembers} expenses={currentExpenses}
+              actionsOpen={membersActionsOpen} onActionsClose={() => setMembersActionsOpen(false)}
+              onSetMembers={(next) => updateCurrentTrip((t) => ({ ...t, members: next }))}
+              onTapMember={(id) => setSubScreen({ type: "member-detail", id })}
+            />
+          </div>
+        </div>
+      )}
+
       {/* ── Trip Details ───────────────────────────────────────────────────── */}
       {tripDetailId && (
         <div className="fixed inset-0 z-50 bg-[#F8FAFC] overflow-y-auto">
           <div className="safe-top" />
-          <TripDetailsView
-            trip={currentTrip}
-            onBack={() => setTripDetailId(null)}
-            onSeeAllExpenses={() => {
-              setTripDetailId(null);
-              setTab("expenses");
-            }}
-          />
+            <TripDetailsView
+              trip={currentTrip}
+              onBack={() => setTripDetailId(null)}
+              onSeeAllExpenses={() => {
+                setTripDetailId(null);
+                setTab("expenses");
+              }}
+              onViewMembers={() => setSubScreen({ type: "members" })}
+              onTapMember={() => setSubScreen({ type: "members" })}
+              onSaveTrip={handleSaveTrip}
+              onDeleteTrip={handleDeleteTrip}
+            />
         </div>
       )}
     </div>
