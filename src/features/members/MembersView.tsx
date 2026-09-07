@@ -25,7 +25,10 @@ export default function MembersView({
 
   function handleAddGuest(name: string) {
     const initials = name.split(" ").map((w) => w[0]?.toUpperCase() ?? "").join("").slice(0, 2);
-    onSetMembers([...members, { id: `g${Date.now()}`, name, initials, color: "#64748B", balance: 0, paid: 0, role: "guest" }]);
+    const guestId = typeof crypto !== "undefined" && crypto.randomUUID
+      ? `g-${crypto.randomUUID()}`
+      : `g-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    onSetMembers([...members, { id: guestId, name, initials, color: "#64748B", balance: 0, paid: 0, role: "guest" }]);
     setShowAddGuest(false);
   }
 
