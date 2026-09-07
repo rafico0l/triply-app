@@ -95,7 +95,7 @@ const inputError = "border-[#FECACA] bg-[#FFF5F5] focus:border-[#DC2626]";
 // ─── Create Trip Screen ───────────────────────────────────────────────────────
 export default function CreateTour({ onBack, onCreate }: {
   onBack:   () => void;
-  onCreate: (data: CreateTourData) => void;
+  onCreate: (data: CreateTourData, coverImageUrl: string | null) => void;
 }) {
   const nameId       = useId();
   const destId       = useId();
@@ -167,7 +167,7 @@ export default function CreateTour({ onBack, onCreate }: {
     setTouched(new Set(["destination", "startDate", "endDate", "name", "budget"]));
     const errs = validate(form);
     if (Object.keys(errs).length === 0) {
-      onCreate(form);
+      onCreate(form, coverPreview);
     }
   };
 

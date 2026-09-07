@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type ReactNode } from "react";
 import { AuthFlow } from "../features/auth/Auth";
 import TourList from "../features/tours/TourList";
-import CreateTour from "../features/tours/CreateTour";
+import CreateTour, { type CreateTourData } from "../features/tours/CreateTour";
 import InviteMembers from "../features/tours/InviteMembers";
 import InviteAcceptFlow from "../features/tours/InviteAccept";
 import AddExpense from "../features/expenses/AddExpense";
@@ -265,6 +265,53 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [screen, setScreen]                   = useState<Screen>(DEMO_INVITE_MODE ? "inviteAccept" : "tour");
   const [activeTourId, setActiveTourId]       = useState<string | null>(null);
+  const [trips, setTrips]                     = useState<Trip[]>(INITIAL_TRIPS);
+  const [currentTripId, setCurrentTripId]     = useState<string>("trip-1");
+
+  function handleCreateTour(data: CreateTourData, coverImageUrl: string | null) {
+    const startDate = data.startDate;
+    const endDate   = data.endDate;
+    const startStr  = startDate ? new Date(startDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
+    const endStr    = endDate   ? new Date(endDate   + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
+    const datesDisplay = !startDate ? "" : !endDate || endDate === startDate ? endStr || startStr : `${startStr}\u2013${endStr}`;
+
+    const budgetNum = data.budget ? Number(data.budget) : undefined;
+
+    const newTripId = typeof crypto !== "undefined" && crypto.randomUUID
+      ? `trip-${crypto.randomUUID()}`
+      : `trip-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+
+    const creator: Member = {
+      id:        `m-${newTripId}-owner`,
+      name:      "You",
+      initials:  "RI",
+      color:     "#0A86A0",
+      paid:      0,
+      balance:   0,
+      isMe:      true,
+      role:      "owner",
+    };
+
+    const newTrip: Trip = {
+      id:           newTripId,
+      name:         data.name.trim(),
+      destination:  data.destination.trim(),
+      dates:        datesDisplay,
+      startDate:    startDate || undefined,
+      endDate:      endDate || undefined,
+      status:       "active",
+      budget:       budgetNum && budgetNum > 0 ? budgetNum : undefined,
+      coverImage:   coverImageUrl ?? undefined,
+      members:      [creator],
+      expenses:     [],
+      settlements:  [],
+    };
+
+    setTrips((prev) => [...prev, newTrip]);
+    setCurrentTripId(newTripId);
+    setActiveTourId(newTripId);
+    setScreen("tour");
+  }
 
   if (screen === "inviteAccept") {
     return (
@@ -278,7 +325,7 @@ export default function App() {
   }
   if (!isAuthenticated) return <AuthFlow onAuthenticate={() => setIsAuthenticated(true)} />;
   if (screen === "createTour") {
-    return <CreateTour onBack={() => setScreen("tourList")} onCreate={() => { setActiveTourId("new"); setScreen("inviteMembers"); }} />;
+    return <CreateTour onBack={() => setScreen("tourList")} onCreate={handleCreateTour} />;
   }
   if (screen === "inviteMembers") {
     return <InviteMembers tourName={TOUR.name} tourDates={TOUR.dates} onBack={() => setScreen("createTour")} onDone={() => setScreen("tour")} />;
@@ -286,12 +333,29 @@ export default function App() {
   if (screen === "tourList") {
     return <TourList onSelectTour={(id: string) => { setActiveTourId(id); setScreen("tour"); }} onNewTour={() => setScreen("createTour")} />;
   }
-  return <AuthenticatedApp isEmpty={!activeTourId || activeTourId === "new"} onNewTour={() => setScreen("createTour")} onSelectTour={(id: string) => setActiveTourId(id)} />;
+  return <AuthenticatedApp
+    trips={trips}
+    setTrips={setTrips}
+    currentTripId={currentTripId}
+    setCurrentTripId={setCurrentTripId}
+    isEmpty={!activeTourId || activeTourId === "new"}
+    onNewTour={() => setScreen("createTour")}
+    onSelectTour={(id: string) => setActiveTourId(id)}
+  />;
 }
 
-function AuthenticatedApp({ isEmpty = false, onNewTour, onSelectTour }: { isEmpty?: boolean; onNewTour: () => void; onSelectTour?: (id: string) => void }) {
-  const [trips, setTrips] = useState<Trip[]>(INITIAL_TRIPS);
-  const [currentTripId, setCurrentTripId] = useState<string>("trip-1");
+function AuthenticatedApp({
+  isEmpty = false, onNewTour, onSelectTour,
+  trips, setTrips, currentTripId, setCurrentTripId,
+}: {
+  isEmpty?: boolean;
+  onNewTour: () => void;
+  onSelectTour?: (id: string) => void;
+  trips: Trip[];
+  setTrips: React.Dispatch<React.SetStateAction<Trip[]>>;
+  currentTripId: string;
+  setCurrentTripId: React.Dispatch<React.SetStateAction<string>>;
+}) {
   const [tab,                 setTab]                 = useState<Tab>("home");
   const [syncStatus]                                  = useState<SyncStatus>("pending");
   const [showAddExpense,      setShowAddExpense]       = useState(false);
