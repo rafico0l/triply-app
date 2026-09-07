@@ -16,6 +16,8 @@ import HomeView from "../features/home/HomeView";
 import TripsView from "../features/trips/TripsView";
 import TripDetailsView from "../features/trips/TripDetailsView";
 import { computeAllMemberFinancials, toMajorUnits } from "../domain/finance";
+import type { Trip } from "../domain/trip";
+import { INITIAL_TRIPS } from "../domain/tripSeed";
 
 const DEMO_INVITE_MODE = false;
 
@@ -54,70 +56,6 @@ type SubScreen =
   | { type: "member-detail"; id: string }
   | { type: "settlement-history" }
   | null;
-
-// ─── Sample Data ──────────────────────────────────────────────────────────────
-
-const MEMBERS_INIT: Member[] = [
-  { id: "1", name: "Farhan Ahmed",    initials: "FA", color: "#7C3AED", paid: 480,   balance: -5967, role: "member" },
-  { id: "2", name: "Nadia Islam",     initials: "NI", color: "#0A86A0", paid: 19050, balance: 12603, role: "member" },
-  { id: "3", name: "Rakib Hassan",    initials: "RH", color: "#059669", paid: 6000,  balance: -447,  role: "member" },
-  { id: "4", name: "Tanha Khanam",    initials: "TK", color: "#D97706", paid: 2400,  balance: -4047, role: "member" },
-  { id: "5", name: "Imran Chowdhury", initials: "IC", color: "#E11D48", paid: 0,     balance: -6447, role: "member" },
-  { id: "6", name: "You",             initials: "RI", color: "#0A86A0", paid: 11400, balance: 4953,  isMe: true, role: "owner" },
-  { id: "7", name: "Hasan Ahmed",     initials: "HA", color: "#64748B", paid: 0,     balance: -650,  role: "guest" },
-];
-
-const EXPENSES_INIT: Expense[] = [
-  {
-    id: "1", title: "Hotel Seagull — 2 nights", amount: 14800, category: "lodging",
-    paidBy: "2", splitIds: ["1","2","3","4","5","6"], date: "Aug 22", dateIso: "2026-08-22",
-    addedBy: "2", addedAt: "Aug 22 at 2:15 PM",
-  },
-  {
-    id: "2", title: "Hilsha fish dinner at Jhawban", amount: 4200, category: "food",
-    paidBy: "6", splitIds: ["1","2","3","4","5","6"], date: "Aug 23", dateIso: "2026-08-23",
-    addedBy: "6", addedAt: "Aug 23 at 8:45 PM",
-    note: "Best hilsha in Cox's Bazar — we ordered the full fish.",
-  },
-  {
-    id: "3", title: "CNG auto from station", amount: 480, category: "transport",
-    paidBy: "1", splitIds: ["1","2","3","4","5","6"], date: "Aug 22", dateIso: "2026-08-22",
-    addedBy: "1", addedAt: "Aug 22 at 11:20 AM",
-  },
-  {
-    id: "4", title: "Beach chair & umbrella rentals", amount: 2400, category: "activity",
-    paidBy: "4", splitIds: ["1","2","3","4","5","6"], date: "Aug 24", dateIso: "2026-08-24",
-    addedBy: "4", addedAt: "Aug 24 at 10:00 AM",
-  },
-  {
-    id: "5", title: "Breakfast buffet × 6", amount: 3600, category: "food",
-    paidBy: "2", splitIds: ["1","2","3","4","5","6"], date: "Aug 24", dateIso: "2026-08-24",
-    addedBy: "6", addedAt: "Aug 24 at 9:30 AM",
-  },
-  {
-    id: "6", title: "Speed boat to Saint Martin", amount: 6000, category: "transport",
-    paidBy: "3", splitIds: ["1","2","3","4","5","6"], date: "Aug 25", dateIso: "2026-08-25",
-    addedBy: "3", addedAt: "Aug 25 at 7:00 AM",
-    syncStatus: "pending",
-  },
-  {
-    id: "7", title: "Mermaid Beach Resort — 1 night", amount: 7200, category: "lodging",
-    paidBy: "6", splitIds: ["1","2","3","4","5","6"], date: "Aug 25", dateIso: "2026-08-25",
-    addedBy: "6", addedAt: "Aug 25 at 6:45 PM",
-  },
-  {
-    id: "8", title: "Hasan's taxi to resort", amount: 650, category: "transport",
-    paidBy: "2", splitIds: ["7"], date: "Aug 22", dateIso: "2026-08-22",
-    addedBy: "6", addedAt: "Aug 22 at 3:00 PM",
-  },
-];
-
-const RECORDED_SETTLEMENTS_INIT: RecordedSettlement[] = [
-  { id: "s1", from: "5", to: "2", amount: 6447, date: "Aug 26", dateIso: "2026-08-26", recordedBy: "6" },
-  { id: "s2", from: "1", to: "2", amount: 5967, date: "Aug 26", dateIso: "2026-08-26", recordedBy: "1" },
-];
-
-// BUDGET moved to src/features/home/homeConstants.ts
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -352,9 +290,8 @@ export default function App() {
 }
 
 function AuthenticatedApp({ isEmpty = false, onNewTour, onSelectTour }: { isEmpty?: boolean; onNewTour: () => void; onSelectTour?: (id: string) => void }) {
-  const [members,               setMembers]               = useState<Member[]>(() => computeMembers(MEMBERS_INIT, EXPENSES_INIT, RECORDED_SETTLEMENTS_INIT));
-  const [expenses,              setExpenses]              = useState<Expense[]>(EXPENSES_INIT);
-  const [recordedSettlements,   setRecordedSettlements]   = useState<RecordedSettlement[]>(RECORDED_SETTLEMENTS_INIT);
+  const [trips, setTrips] = useState<Trip[]>(INITIAL_TRIPS);
+  const [currentTripId, setCurrentTripId] = useState<string>("trip-1");
   const [tab,                 setTab]                 = useState<Tab>("home");
   const [syncStatus]                                  = useState<SyncStatus>("pending");
   const [showAddExpense,      setShowAddExpense]       = useState(false);
@@ -367,24 +304,29 @@ function AuthenticatedApp({ isEmpty = false, onNewTour, onSelectTour }: { isEmpt
   const mobileScrollRef = useRef<HTMLDivElement>(null);
   const handleMobileScroll = () => setScrolled((mobileScrollRef.current?.scrollTop ?? 0) > 6);
 
-  const me = members.find((m) => m.isMe);
+  const currentTrip = trips.find((t) => t.id === currentTripId) ?? trips[0];
+  const currentMembers = computeMembers(currentTrip.members, currentTrip.expenses, currentTrip.settlements);
+  const currentExpenses = currentTrip.expenses;
+  const currentSettlements = currentTrip.settlements;
+
+  const me = currentMembers.find((m) => m.isMe);
+
+  function updateCurrentTrip(updater: (trip: Trip) => Trip) {
+    setTrips((prev) => prev.map((t) => (t.id === currentTripId ? updater(t) : t)));
+  }
 
   function handleExpenseSave(data: { amount: string; description: string; category: string | null; paidBy: string; splitIds: string[]; date: string; expenseId?: string }) {
     const amount = parseFloat(data.amount);
     if (isNaN(amount)) return;
 
     if (data.expenseId) {
-      // Edit existing
-      const updated = expenses.map((e) =>
+      const updated = currentExpenses.map((e) =>
         e.id === data.expenseId
           ? { ...e, title: data.description, amount, category: (data.category ?? e.category) as Expense["category"], paidBy: data.paidBy, splitIds: data.splitIds, dateIso: data.date || e.dateIso }
           : e
       );
-      const recomputed = computeMembers(MEMBERS_INIT, updated, recordedSettlements);
-      setExpenses(updated);
-      setMembers(recomputed);
+      updateCurrentTrip((t) => ({ ...t, expenses: updated }));
     } else {
-      // New expense
       const isoDate = data.date || new Date().toISOString().slice(0, 10);
       const dateDisplay = new Date(isoDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
       const newExp: Expense = {
@@ -399,20 +341,14 @@ function AuthenticatedApp({ isEmpty = false, onNewTour, onSelectTour }: { isEmpt
         addedBy:   me?.id ?? "6",
         addedAt:   new Date().toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }),
       };
-      const updated    = [newExp, ...expenses];
-      const recomputed = computeMembers(MEMBERS_INIT, updated, recordedSettlements);
-      setExpenses(updated);
-      setMembers(recomputed);
+      updateCurrentTrip((t) => ({ ...t, expenses: [newExp, ...t.expenses] }));
     }
     setShowAddExpense(false);
     setEditingExpense(null);
   }
 
   function handleDeleteExpense(id: string) {
-    const updated    = expenses.filter((e) => e.id !== id);
-    const recomputed = computeMembers(MEMBERS_INIT, updated, recordedSettlements);
-    setExpenses(updated);
-    setMembers(recomputed);
+    updateCurrentTrip((t) => ({ ...t, expenses: t.expenses.filter((e) => e.id !== id) }));
     setSubScreen(null);
   }
 
@@ -425,21 +361,15 @@ function AuthenticatedApp({ isEmpty = false, onNewTour, onSelectTour }: { isEmpt
       recordedBy: me?.id ?? "6",
       syncStatus: "pending",
     };
-    const updated    = [newS, ...recordedSettlements];
-    const recomputed = computeMembers(MEMBERS_INIT, expenses, updated);
-    setRecordedSettlements(updated);
-    setMembers(recomputed);
+    updateCurrentTrip((t) => ({ ...t, settlements: [newS, ...t.settlements] }));
   }
 
   function handleDeleteSettlement(id: string) {
-    const updated    = recordedSettlements.filter((s) => s.id !== id);
-    const recomputed = computeMembers(MEMBERS_INIT, expenses, updated);
-    setRecordedSettlements(updated);
-    setMembers(recomputed);
+    updateCurrentTrip((t) => ({ ...t, settlements: t.settlements.filter((s) => s.id !== id) }));
   }
 
   function handleRemoveMember(id: string) {
-    setMembers((prev) => prev.filter((m) => m.id !== id));
+    updateCurrentTrip((t) => ({ ...t, members: t.members.filter((m) => m.id !== id) }));
     setSubScreen(null);
   }
 
@@ -454,27 +384,27 @@ function AuthenticatedApp({ isEmpty = false, onNewTour, onSelectTour }: { isEmpt
   const h = headerConfig[tab];
   const contentBottomPad = "calc(env(safe-area-inset-bottom, 0px) + 60px + 16px)";
 
-  const activeExpense = subScreen?.type === "expense-detail" ? expenses.find((e) => e.id === subScreen.id) : null;
-  const activeMember  = subScreen?.type === "member-detail"  ? members.find((m) => m.id === subScreen.id)  : null;
+  const activeExpense = subScreen?.type === "expense-detail" ? currentExpenses.find((e) => e.id === subScreen.id) : null;
+  const activeMember  = subScreen?.type === "member-detail"  ? currentMembers.find((m) => m.id === subScreen.id)  : null;
 
   const PageContent = () => (
     <>
-      {tab === "home"       && <HomeView       expenses={expenses} members={members} onTabChange={setTab} empty={isEmpty} onAddExpense={() => setShowAddExpense(true)} onSettle={() => setTab("settlement")} />}
-      {tab === "trips"      && <TripsView onNewTour={onNewTour} onBack={() => setTab("home")} onSelectTour={(id) => setTripDetailId(id)} />}
-      {tab === "expenses"   && <ExpensesView   expenses={expenses} members={members} onTapExpense={(id) => setSubScreen({ type: "expense-detail", id })} />}
+      {tab === "home"       && <HomeView       expenses={currentExpenses} members={currentMembers} onTabChange={setTab} empty={isEmpty} onAddExpense={() => setShowAddExpense(true)} onSettle={() => setTab("settlement")} />}
+      {tab === "trips"      && <TripsView trips={trips} onNewTour={onNewTour} onBack={() => setTab("home")} onSelectTour={(id) => { setCurrentTripId(id); setTab("home"); }} />}
+      {tab === "expenses"   && <ExpensesView   expenses={currentExpenses} members={currentMembers} onTapExpense={(id) => setSubScreen({ type: "expense-detail", id })} />}
       {tab === "members"    && (
         <MembersView
-          members={members} expenses={expenses}
+          members={currentMembers} expenses={currentExpenses}
           actionsOpen={membersActionsOpen} onActionsClose={() => setMembersActionsOpen(false)}
-          onSetMembers={setMembers}
+          onSetMembers={(next) => updateCurrentTrip((t) => ({ ...t, members: next }))}
           onTapMember={(id) => setSubScreen({ type: "member-detail", id })}
         />
       )}
       {tab === "settlement" && (
         <SettlementView
-          members={members}
-          expenses={expenses}
-          recordedSettlements={recordedSettlements}
+          members={currentMembers}
+          expenses={currentExpenses}
+          recordedSettlements={currentSettlements}
           me={me}
           isCurrentUserOwner={me?.role === "owner"}
           onRecordSettlement={handleRecordSettlement}
@@ -576,7 +506,7 @@ function AuthenticatedApp({ isEmpty = false, onNewTour, onSelectTour }: { isEmpt
       {(showAddExpense || editingExpense) && (
         <AddExpense
           tourName={TOUR.name}
-          members={members.map((m) => ({
+          members={currentMembers.map((m) => ({
             id: m.id, name: m.isMe ? "Rafi" : m.name, initials: m.initials, color: m.color, isMe: m.isMe,
           }))}
           tourStartDate={TOUR.startDate}
@@ -601,7 +531,7 @@ function AuthenticatedApp({ isEmpty = false, onNewTour, onSelectTour }: { isEmpt
       {activeExpense && (
         <ExpenseDetails
           expense={activeExpense}
-          members={members}
+          members={currentMembers}
           onBack={() => setSubScreen(null)}
           onEdit={() => {
             setSubScreen(null);
@@ -615,13 +545,13 @@ function AuthenticatedApp({ isEmpty = false, onNewTour, onSelectTour }: { isEmpt
       {activeMember && (
         <MemberDetails
           member={activeMember}
-          allMembers={members}
-          allExpenses={expenses}
-          recordedSettlements={recordedSettlements}
+          allMembers={currentMembers}
+          allExpenses={currentExpenses}
+          recordedSettlements={currentSettlements}
           me={me}
           isCurrentUserOwner={me?.role === "owner"}
           onBack={() => setSubScreen(null)}
-          onSetMembers={setMembers}
+          onSetMembers={(next) => updateCurrentTrip((t) => ({ ...t, members: next }))}
           onRemove={() => handleRemoveMember(activeMember.id)}
         />
       )}
@@ -629,8 +559,8 @@ function AuthenticatedApp({ isEmpty = false, onNewTour, onSelectTour }: { isEmpt
       {/* ── Settlement History ─────────────────────────────────────────────── */}
       {subScreen?.type === "settlement-history" && (
         <SettlementHistoryView
-          recordedSettlements={recordedSettlements}
-          members={members}
+          recordedSettlements={currentSettlements}
+          members={currentMembers}
           me={me}
           isCurrentUserOwner={me?.role === "owner"}
           onDeleteSettlement={handleDeleteSettlement}
@@ -643,7 +573,7 @@ function AuthenticatedApp({ isEmpty = false, onNewTour, onSelectTour }: { isEmpt
         <div className="fixed inset-0 z-50 bg-[#F8FAFC] overflow-y-auto">
           <div className="safe-top" />
           <TripDetailsView
-            tripId={tripDetailId}
+            trip={currentTrip}
             onBack={() => setTripDetailId(null)}
             onSeeAllExpenses={() => {
               setTripDetailId(null);

@@ -11,12 +11,12 @@ import { fmt } from "../../lib/format";
 import CATEGORY_META from "../../lib/categoryMeta";
 import { Avatar } from "../../components/shared/Avatar";
 import type { Member, Expense } from "../../domain/types";
-import { TRIP_DETAILS_DATA, type TripDetailData } from "./tripDetailsData";
+import type { Trip } from "../../domain/trip";
 import type { Tour } from "./components/TripCard";
 import { computeTotalSpent, computeBudgetStats, toMajorUnits, toMinorUnits } from "../../domain/finance";
 
 export interface TripDetailsViewProps {
-  tripId: string;
+  trip: Trip;
   onBack: () => void;
   onSeeAllExpenses?: (tripId: string) => void;
   onTapExpense?: (expenseId: string, expense: Expense) => void;
@@ -25,16 +25,13 @@ export interface TripDetailsViewProps {
 }
 
 export default function TripDetailsView({
-  tripId,
+  trip,
   onBack,
   onSeeAllExpenses,
   onTapExpense,
   onTapMember,
   onInvite,
 }: TripDetailsViewProps) {
-  // Retrieve trip details by tripId or fallback to trip 1 (Sajek Valley)
-  const trip: TripDetailData = TRIP_DETAILS_DATA[tripId] ?? TRIP_DETAILS_DATA["1"];
-
   const totalSpentMinor = computeTotalSpent(trip.expenses);
   const totalSpent = toMajorUnits(totalSpentMinor);
   const budgetStats = computeBudgetStats(totalSpentMinor, trip.budget ? toMinorUnits(trip.budget) : undefined);
@@ -42,6 +39,9 @@ export default function TripDetailsView({
   const spentPct = budgetStats ? budgetStats.spentPercentage : 0;
   const remaining = budgetStats ? toMajorUnits(budgetStats.remainingMinor) : 0;
   const budget = trip.budget ?? 0;
+
+  const travelerCount = trip.travelerCount ?? trip.members.length;
+  const durationDays = trip.durationDays ?? 1;
 
   return (
     <div className="bg-[#F8FAFC] min-h-full pb-10">

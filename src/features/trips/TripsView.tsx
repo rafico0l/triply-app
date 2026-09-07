@@ -1,46 +1,8 @@
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowLeft01Icon, PlusIcon } from "@hugeicons/core-free-icons";
 import TripCard, { type Tour } from "./components/TripCard";
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-// Reuses Tour type from TourList.tsx pattern. Will be replaced by real data.
-const TOURS: Tour[] = [
-  {
-    id: "1",
-    name: "Sajek Valley Expedition",
-    destination: "Sajek Valley",
-    dates: "Oct 18–22",
-    members: 5,
-    spent: 34250,
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Cox's Bazar Getaway",
-    destination: "Cox's Bazar",
-    dates: "Nov 8–12",
-    members: 6,
-    status: "upcoming",
-  },
-  {
-    id: "3",
-    name: "Sylhet Weekend",
-    destination: "Sylhet",
-    dates: "Jun 14–16",
-    members: 5,
-    spent: 24800,
-    status: "completed",
-  },
-  {
-    id: "4",
-    name: "Sundarbans Escape",
-    destination: "Khulna",
-    dates: "Mar 8–11",
-    members: 4,
-    spent: 18400,
-    status: "completed",
-  },
-];
+import { computeTotalSpent, toMajorUnits } from "../../domain/finance";
+import type { Trip } from "../../domain/trip";
 
 // ─── Section Label ────────────────────────────────────────────────────────────
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -51,19 +13,31 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ─── Trips View ───────────────────────────────────────────────────────────────
 export default function TripsView({
+  trips,
   onNewTour,
   onBack,
   onSelectTour,
 }: {
+  trips: Trip[];
   onNewTour: () => void;
   onBack?: () => void;
   onSelectTour?: (id: string) => void;
 }) {
-  const activeTours = TOURS.filter((t) => t.status === "active");
-  const upcomingTours = TOURS.filter((t) => t.status === "upcoming");
-  const completedTours = TOURS.filter((t) => t.status === "completed");
+  const activeTours = trips.filter((t) => t.status === "active");
+  const upcomingTours = trips.filter((t) => t.status === "upcoming");
+  const completedTours = trips.filter((t) => t.status === "completed");
+
+  const toDisplayTour = (trip: Trip): Tour => ({
+    id: trip.id,
+    name: trip.name,
+    destination: trip.destination,
+    dates: trip.dates,
+    members: trip.members.length,
+    spent: toMajorUnits(computeTotalSpent(trip.expenses)),
+    status: trip.status,
+    coverImage: trip.coverImage,
+  });
 
   return (
     <div className="relative min-h-full pb-20">
@@ -98,7 +72,7 @@ export default function TripsView({
               {activeTours.map((tour) => (
                 <TripCard
                   key={tour.id}
-                  tour={tour}
+                  tour={toDisplayTour(tour)}
                   onSelect={onSelectTour}
                 />
               ))}
@@ -114,7 +88,7 @@ export default function TripsView({
               {upcomingTours.map((tour) => (
                 <TripCard
                   key={tour.id}
-                  tour={tour}
+                  tour={toDisplayTour(tour)}
                   onSelect={onSelectTour}
                 />
               ))}
@@ -130,7 +104,7 @@ export default function TripsView({
               {completedTours.map((tour) => (
                 <TripCard
                   key={tour.id}
-                  tour={tour}
+                  tour={toDisplayTour(tour)}
                   onSelect={onSelectTour}
                 />
               ))}
@@ -143,7 +117,7 @@ export default function TripsView({
       <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+60px+16px)] left-0 right-0 z-20 flex justify-center pointer-events-none">
         <button
           onClick={onNewTour}
-          className="pressable pointer-events-auto inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#0A86A0] text-white font-700 text-[14px] shadow-[0_4px_16px_rgba(10,134,160,0.3)] hover:bg-[#087288] transition-colors active:scale-95"
+          className="pressable pointer-events-auto inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#0A86A0] text-white font-700 text-[14px] shadow-[0 4px_16px_rgba(10,134,160,0.3)] hover:bg-[#087288] transition-colors active:scale-95"
         >
           <HugeiconsIcon
             icon={PlusIcon}
