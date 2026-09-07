@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Member, RecordedSettlement } from "../../domain/types";
+import type { Member, Expense, RecordedSettlement } from "../../domain/types";
 import { fmt } from "../../lib/format";
 import { Avatar } from "../../components/shared/Avatar";
 import { IconArrowRight, IconChevronRight, IconCheckCircle2, IconHistory } from "../../components/shared/icons";
@@ -8,10 +8,11 @@ import SettlementToast from "./components/SettlementToast";
 import RecordPaymentSheet from "./components/RecordPaymentSheet";
 
 export default function SettlementView({
-  members, recordedSettlements, me, isCurrentUserOwner,
+  members, expenses, recordedSettlements, me, isCurrentUserOwner,
   onRecordSettlement, onOpenHistory,
 }: {
   members: Member[];
+  expenses: Expense[];
   recordedSettlements: RecordedSettlement[];
   me: Member | undefined;
   isCurrentUserOwner: boolean;
@@ -22,7 +23,7 @@ export default function SettlementView({
   const [showManual,    setShowManual]    = useState(false);
   const [toast,         setToast]         = useState<{ from: string; to: string; amount: number } | null>(null);
 
-  const suggestedPayments = computeSuggestedPayments(members);
+  const suggestedPayments = computeSuggestedPayments(members, expenses, recordedSettlements);
   const totalToSettle     = suggestedPayments.reduce((s, p) => s + p.amount, 0);
   const isFullySettled    = members.every((m) => Math.abs(m.balance) <= 2);
 

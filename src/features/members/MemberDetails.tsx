@@ -10,6 +10,7 @@ import EditNameSheet from "./components/EditNameSheet";
 import Badge from "../../components/shared/Badge";
 import { IconChevronLeft, IconDotsV, IconArrowRight, IconCheck } from "../../components/shared/icons";
 import CATEGORY_META from "../../lib/categoryMeta";
+import { computeMemberFinancials, computeExpenseShares, toMajorUnits } from "../../domain/finance";
 
 export default function MemberDetails({
   member, allMembers, allExpenses, recordedSettlements, me, isCurrentUserOwner,
@@ -27,22 +28,26 @@ export default function MemberDetails({
   const isMe      = member.isMe;
   const isGuest   = member.role === "guest";
   const isOwner   = member.role === "owner";
-  const shareAmt  = Math.round(allExpenses.filter((e) => e.splitIds.includes(member.id)).reduce((s, e) => s + e.amount / e.splitIds.length, 0));
+
+  const memberFinancials = computeMemberFinancials(member.id, allMembers, allExpenses, recordedSettlements);
+  const paidAmt    = toMajorUnits(memberFinancials.totalPaidMinor);
+  const shareAmt   = toMajorUnits(memberFinancials.totalShareMinor);
+  const balanceMinor = memberFinancials.balanceMinor;
 
   const memberExpenses     = allExpenses.filter((e) => e.paidBy === member.id || e.splitIds.includes(member.id));
   const memberSettlements  = recordedSettlements.filter((s) => s.from === member.id || s.to === member.id);
 
-  const balancePositive = member.balance > 2;
-  const balanceZero     = Math.abs(member.balance) <= 2;
+  const balancePositive = balanceMinor > 200;
+  const balanceZero     = Math.abs(balanceMinor) <= 200;
   const balanceColor    = balanceZero ? "#94A3B8" : balancePositive ? "#15803D" : "#DC2626";
 
   let balanceExplanation = "";
   if (balanceZero) {
     balanceExplanation = `${isMe ? "You are" : `${member.name.split(" ")[0]} is`} fully settled.`;
   } else if (balancePositive) {
-    balanceExplanation = `${isMe ? "You paid" : `${member.name.split(" ")[0]} paid`} more than their fair share and should receive ${fmt(member.balance)} back from the group.`;
+    balanceExplanation = `${isMe ? "You paid" : `${member.name.split(" ")[0]} paid`} more than their fair share and should receive ${fmt(toMajorUnits(balanceMinor))} back from the group.`;
   } else {
-    balanceExplanation = `${isMe ? "You owe" : `${member.name.split(" ")[0]} owes`} ${fmt(Math.abs(member.balance))} to the group — their share of expenses exceeds what they've paid.`;
+    balanceExplanation = `${isMe ? "You owe" : `${member.name.split(" ")[0]} owes`} ${fmt(toMajorUnits(Math.abs(balanceMinor)))} to the group — their share of expenses exceeds what they've paid.`;
   }
 
   function handleRemoveTapped() {
@@ -106,7 +111,7 @@ export default function MemberDetails({
             <div className="grid grid-cols-3 divide-x divide-[#F1F5F9]">
               <div className="px-3 py-3 text-center">
                 <p className="text-[10px] font-700 text-[#94A3B8] uppercase tracking-wide mb-1">Paid</p>
-                <p className="num text-[16px] font-700 text-[#0F172A] leading-snug">{fmt(member.paid)}</p>
+                 <p className="num text-[16px] font-700 text-[#0F172A] leading-snug">{fmt(paidAmt)}</p>
               </div>
               <div className="px-3 py-3 text-center">
                 <p className="text-[10px] font-700 text-[#94A3B8] uppercase tracking-wide mb-1">Share</p>
@@ -115,7 +120,7 @@ export default function MemberDetails({
               <div className="px-3 py-3 text-center">
                 <p className="text-[10px] font-700 text-[#94A3B8] uppercase tracking-wide mb-1">Balance</p>
                 <p className="num text-[16px] font-700 leading-snug" style={{ color: balanceColor }}>
-                  {balanceZero ? "Settled" : `${balancePositive ? "+" : "−"}${fmt(member.balance)}`}
+                  {balanceZero ? "Settled" : `${balancePositive ? "+" : "−"}${fmt(toMajorUnits(balanceMinor))}`}
                 </p>
               </div>
             </div>
@@ -132,7 +137,8 @@ export default function MemberDetails({
                   const cat = CATEGORY_META[e.category];
                   const isPayer = e.paidBy === member.id;
                   const inSplit = e.splitIds.includes(member.id);
-                  const share = inSplit ? Math.round(e.amount / e.splitIds.length) : 0;
+                  const shares = computeExpenseShares(e);
+                  const share = inSplit ? Math.round(toMajorUnits(shares.get(member.id) ?? 0)) : 0;
                   return (
                     <div key={e.id} className="flex items-start gap-3 px-4 py-3">
                       <div className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: cat.bg, color: cat.fg }}>

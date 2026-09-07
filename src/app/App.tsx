@@ -15,6 +15,7 @@ import SettlementView from "../features/settlements/SettlementView";
 import HomeView from "../features/home/HomeView";
 import TripsView from "../features/trips/TripsView";
 import TripDetailsView from "../features/trips/TripDetailsView";
+import { computeAllMemberFinancials, toMajorUnits } from "../domain/finance";
 
 const DEMO_INVITE_MODE = false;
 
@@ -121,12 +122,17 @@ const RECORDED_SETTLEMENTS_INIT: RecordedSettlement[] = [
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function computeMembers(members: Member[], expenses: Expense[], recordedSettlements: RecordedSettlement[] = []): Member[] {
+  const financials = computeAllMemberFinancials(members, expenses, recordedSettlements);
+  const financialMap = new Map(financials.map((f) => [f.memberId, f]));
+
   return members.map((m) => {
-    const paid       = expenses.filter((e) => e.paidBy === m.id).reduce((s, e) => s + e.amount, 0);
-    const share      = expenses.filter((e) => e.splitIds.includes(m.id)).reduce((s, e) => s + e.amount / e.splitIds.length, 0);
-    const settledOut = recordedSettlements.filter((s) => s.from === m.id).reduce((sum, s) => sum + s.amount, 0);
-    const settledIn  = recordedSettlements.filter((s) => s.to   === m.id).reduce((sum, s) => sum + s.amount, 0);
-    return { ...m, paid, balance: Math.round(paid - share + settledOut - settledIn) };
+    const f = financialMap.get(m.id);
+    if (!f) return m;
+    return {
+      ...m,
+      paid: toMajorUnits(f.totalPaidMinor),
+      balance: Math.round(toMajorUnits(f.balanceMinor)),
+    };
   });
 }
 
@@ -467,6 +473,7 @@ function AuthenticatedApp({ isEmpty = false, onNewTour, onSelectTour }: { isEmpt
       {tab === "settlement" && (
         <SettlementView
           members={members}
+          expenses={expenses}
           recordedSettlements={recordedSettlements}
           me={me}
           isCurrentUserOwner={me?.role === "owner"}

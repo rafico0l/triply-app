@@ -1,4 +1,5 @@
-import type { Member } from "../../domain/types";
+import type { Member, Expense, RecordedSettlement } from "../../domain/types";
+import { computeSuggestedPayments as computeEngineSuggestedPayments, toMajorUnits } from "../../domain/finance";
 
 export interface SuggestedPayment {
   from: string;
@@ -6,18 +7,15 @@ export interface SuggestedPayment {
   amount: number;
 }
 
-export function computeSuggestedPayments(members: Member[]): SuggestedPayment[] {
-  const payments: SuggestedPayment[] = [];
-  const creds = members.filter((m) => m.balance > 1).sort((a, b) => b.balance - a.balance).map((m) => ({ id: m.id, bal: m.balance }));
-  const debts = members.filter((m) => m.balance < -1).sort((a, b) => a.balance - b.balance).map((m) => ({ id: m.id, bal: m.balance }));
-  let ci = 0, di = 0;
-  while (ci < creds.length && di < debts.length) {
-    const amount = Math.min(creds[ci].bal, -debts[di].bal);
-    if (amount >= 1) payments.push({ from: debts[di].id, to: creds[ci].id, amount: Math.round(amount) });
-    creds[ci].bal -= amount;
-    debts[di].bal += amount;
-    if (creds[ci].bal < 1) ci++;
-    if (debts[di].bal > -1) di++;
-  }
-  return payments;
+export function computeSuggestedPayments(
+  members: Member[],
+  expenses: Expense[] = [],
+  recordedSettlements: RecordedSettlement[] = []
+): SuggestedPayment[] {
+  const payments = computeEngineSuggestedPayments(members, expenses, recordedSettlements);
+  return payments.map((p) => ({
+    from: p.from,
+    to: p.to,
+    amount: toMajorUnits(p.amountMinor),
+  }));
 }

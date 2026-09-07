@@ -1,6 +1,7 @@
 import Avatar from "../../../components/shared/Avatar";
 import { fmt } from "../../../lib/format";
 import type { Member, Expense } from "../../../domain/types";
+import { computeMemberPaid, computeMemberShare, toMajorUnits } from "../../../domain/finance";
 
 export function MemberRowCompact({ member }: { member: Member }) {
   const isOwed  = member.balance > 0;
@@ -35,7 +36,8 @@ export function MemberRow({
   const isEven    = member.balance === 0;
   const isGuest   = member.role === "guest";
   const isOwner   = member.role === "owner";
-  const shareAmt  = Math.round(expenses.filter((e) => e.splitIds.includes(member.id)).reduce((s, e) => s + e.amount / e.splitIds.length, 0));
+  const paidAmt   = toMajorUnits(computeMemberPaid(member.id, expenses));
+  const shareAmt  = toMajorUnits(computeMemberShare(member.id, expenses));
 
   let roleLabel = "";
   if (isOwner && member.isMe) roleLabel = "Owner · You";
@@ -54,7 +56,7 @@ export function MemberRow({
         <p className="text-[14px] font-600 text-[#0F172A] leading-snug truncate">{member.isMe ? "Rafi" : member.name}</p>
         <p className="text-[12px] text-[#94A3B8] font-500 mt-0.5 leading-none">{roleLabel}</p>
         <p className="num text-[11px] text-[#94A3B8] font-500 mt-1 leading-none">
-          Paid {fmt(member.paid)} · Share {fmt(shareAmt)}
+          Paid {fmt(paidAmt)} · Share {fmt(shareAmt)}
         </p>
       </div>
       <div className="text-right shrink-0 ml-2">

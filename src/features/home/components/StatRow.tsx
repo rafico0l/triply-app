@@ -1,15 +1,19 @@
 import type { Expense, Member } from "../../../domain/types";
 import { fmt } from "../../../lib/format";
 import { BUDGET } from "../homeConstants";
+import { computeTotalSpent, computeMemberPaid, computeMemberShare, computeBudgetStats, toMajorUnits } from "../../../domain/finance";
 
 export default function StatRow({ expenses, members, empty = false }: { expenses: Expense[]; members: Member[]; empty?: boolean }) {
-  const total = expenses.reduce((s, e) => s + e.amount, 0);
+  const totalMinor = computeTotalSpent(expenses);
+  const total = toMajorUnits(totalMinor);
   const me = members.find((m) => m.isMe);
-  const myShare = me ? expenses.filter((e) => e.splitIds.includes(me.id)).reduce((s, e) => s + e.amount / e.splitIds.length, 0) : 0;
+  const myPaid = me ? toMajorUnits(computeMemberPaid(me.id, expenses)) : 0;
+  const myShare = me ? toMajorUnits(computeMemberShare(me.id, expenses)) : 0;
   const myShareRounded = Math.round(myShare);
   const myBalance = me?.balance ?? 0;
-  const remaining = BUDGET - total;
-  const progress = Math.min(total / BUDGET, 1);
+  const budgetStats = computeBudgetStats(totalMinor, BUDGET);
+  const remaining = budgetStats ? toMajorUnits(budgetStats.remainingMinor) : BUDGET - total;
+  const progress = budgetStats ? budgetStats.spentPercentage / 100 : Math.min(total / BUDGET, 1);
 
   if (empty || !me) {
     return (
@@ -60,7 +64,7 @@ export default function StatRow({ expenses, members, empty = false }: { expenses
           <div className="px-5 py-3">
             <p className="text-[11px] font-600 text-[#94A3B8] uppercase tracking-wide mb-1">Your share</p>
             <p className="num text-[18px] font-700 text-[#0F172A] leading-snug">{fmt(myShareRounded)}</p>
-            <p className="num text-[11px] text-[#94A3B8] font-500 mt-0.5">Paid {fmt(me.paid)}</p>
+            <p className="num text-[11px] text-[#94A3B8] font-500 mt-0.5">Paid {fmt(myPaid)}</p>
           </div>
           <div className="px-5 py-3">
             <p className="text-[11px] font-600 text-[#94A3B8] uppercase tracking-wide mb-1">Your balance</p>

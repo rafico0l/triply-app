@@ -6,6 +6,7 @@ import { Avatar } from "../../components/shared/Avatar";
 import { IconChevronLeft, IconDotsV, IconAlertCircle, IconCalendar, IconNote } from "../../components/shared/icons";
 import ExpenseOverflowSheet from "./components/ExpenseOverflowSheet";
 import DeleteExpenseSheet from "./components/DeleteExpenseSheet";
+import { computeExpenseShares, toMajorUnits } from "../../domain/finance";
 
 export default function ExpenseDetails({
   expense, members, onBack, onEdit, onDelete,
@@ -22,7 +23,8 @@ export default function ExpenseDetails({
   const canEdit = me ? (me.id === expense.addedBy || me.role === "owner") : false;
   const inSplit = me ? expense.splitIds.includes(me.id) : false;
 
-  const perPersonShare = expense.amount / expense.splitIds.length;
+  const shares = computeExpenseShares(expense);
+  const myShareMajor = me && inSplit ? toMajorUnits(shares.get(me.id) ?? 0) : 0;
 
   return (
     <div
@@ -119,7 +121,7 @@ export default function ExpenseDetails({
                     {m.role === "guest" && <p className="text-[11px] text-[#94A3B8] font-500 mt-0.5">Guest</p>}
                   </div>
                   <p className={`num text-[14px] font-700 shrink-0 ${isYou ? "text-[#0A86A0]" : "text-[#0F172A]"}`}>
-                    {fmt(Math.round(perPersonShare))}
+                    {fmt(Math.round(toMajorUnits(shares.get(sid) ?? 0)))}
                   </p>
                 </div>
               );
@@ -130,8 +132,8 @@ export default function ExpenseDetails({
                   <p className="text-[12px] font-600 text-[#475569]">Your net impact</p>
                   <p className={`num text-[13px] font-700 ${payer?.isMe ? "text-[#15803D]" : "text-[#DC2626]"}`}>
                     {payer?.isMe
-                      ? `+${fmt(Math.round(expense.amount - perPersonShare))} (you get back)`
-                      : `−${fmt(Math.round(perPersonShare))} (you owe)`}
+                      ? `+${fmt(Math.round(expense.amount - myShareMajor))} (you get back)`
+                      : `−${fmt(Math.round(myShareMajor))} (you owe)`}
                   </p>
                 </div>
               </div>

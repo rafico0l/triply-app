@@ -1,12 +1,14 @@
 import type { Expense, Member } from "../../../domain/types";
 import { fmt } from "../../../lib/format";
 import CATEGORY_META from "../../../lib/categoryMeta";
+import { computeExpenseShares, toMajorUnits } from "../../../domain/finance";
 
 export default function HomeExpenseRow({ expense, members }: { expense: Expense; members: Member[] }) {
   const payer = members.find((m) => m.id === expense.paidBy);
   const me = members.find((m) => m.isMe);
   const inSplit = me ? expense.splitIds.includes(me.id) : false;
-  const myShare = inSplit ? Math.round(expense.amount / expense.splitIds.length) : 0;
+  const shares = computeExpenseShares(expense);
+  const myShare = inSplit ? Math.round(toMajorUnits(shares.get(me?.id ?? "") ?? 0)) : 0;
   const isMe = payer?.isMe;
   const cat = CATEGORY_META[expense.category];
 

@@ -4,6 +4,7 @@ import { MapIcon, Add01Icon, AiSwapIcon } from "@hugeicons/core-free-icons";
 import { fmt } from "../../../lib/format";
 import { TOUR } from "../../../lib/tour";
 import { BUDGET } from "../homeConstants";
+import { computeTotalSpent, computeBudgetStats, toMajorUnits } from "../../../domain/finance";
 
 export default function BalanceCard({
   expenses,
@@ -18,10 +19,14 @@ export default function BalanceCard({
   onAddExpense?: () => void;
   onSettle?: () => void;
 }) {
-  const total = expenses.reduce((s, e) => s + e.amount, 0);
+  const totalMinor = computeTotalSpent(expenses);
+  const total = toMajorUnits(totalMinor);
   const me = members.find((m) => m.isMe);
   const myBalance = me?.balance ?? 0;
   const hasBudget = BUDGET != null && BUDGET > 0;
+  const budgetStats = computeBudgetStats(totalMinor, BUDGET);
+  const remaining = budgetStats ? toMajorUnits(budgetStats.remainingMinor) : BUDGET - total;
+  const progress = budgetStats ? budgetStats.spentPercentage / 100 : Math.min(total / BUDGET, 1);
 
   const balanceZero = myBalance === 0;
   const balancePositive = myBalance > 0;
