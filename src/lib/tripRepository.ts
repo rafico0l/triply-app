@@ -346,7 +346,6 @@ export async function createTrip(
     budget_minor: input.budget && input.budget > 0 ? toMinorUnits(input.budget) : null,
     cover_image: input.coverImageUrl || null,
     created_by: userId,
-    invite_code: generateInviteCode(),
   };
 
   const { data: trip, error: tripError } = await sb
@@ -828,13 +827,6 @@ export async function joinTripByInvite(inviteToken: string): Promise<JoinTripRes
     role: row.role as Member["role"],
     isNewMember: true,
   };
-}
-
-/**
- * Generate a unique invite code.
- */
-export function generateInviteCode(): string {
-  return crypto.randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase();
 }
 
 // ── Expense mutations ──────────────────────────────────────────────────────────

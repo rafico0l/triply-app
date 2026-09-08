@@ -1,8 +1,8 @@
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
-  Home01Icon,
-  MapPinIcon,
-  Invoice01Icon,
+  Home03Icon,
+  Briefcase08Icon,
+  Wallet03Icon,
   Settings01Icon,
 } from "@hugeicons/core-free-icons";
 import type { Tab } from "../../types/navigation";
@@ -10,13 +10,13 @@ import type { Tab } from "../../types/navigation";
 interface NavItem {
   id: Tab;
   label: string;
-  icon: typeof Home01Icon;
+  icon: typeof Home03Icon;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "home", label: "Home", icon: Home01Icon },
-  { id: "trips", label: "Trips", icon: MapPinIcon },
-  { id: "expenses", label: "Expenses", icon: Invoice01Icon },
+  { id: "home", label: "Home", icon: Home03Icon },
+  { id: "trips", label: "Trips", icon: Briefcase08Icon },
+  { id: "expenses", label: "Expenses", icon: Wallet03Icon },
   { id: "settings", label: "Settings", icon: Settings01Icon },
 ];
 

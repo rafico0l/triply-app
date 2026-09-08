@@ -40,7 +40,7 @@ import AddGuestSheet from "../features/members/components/AddGuestSheet";
 import MemberActionsMenu from "../features/members/components/MemberActionsMenu";
 import MemberOverflowSheet from "../features/members/components/MemberOverflowSheet";
 import RemoveMemberBlockedSheet from "../features/members/components/RemoveMemberBlockedSheet";
-import { IconEdit, IconUserPlus, IconUserX, IconAlertCircle, IconChevronLeft, IconChevronRight, IconDots, IconDotsV, IconArrowRight, IconCheck, IconTrash, IconInfo, IconHistory, IconCheckCircle2, IconReceipt, IconMapPin, IconSearch, IconX, IconNote, IconCalendar, IconHome, IconSettings } from "../components/shared/icons";
+import { IconEdit, IconUserPlus, IconUserX, IconAlertCircle, IconChevronLeft, IconChevronRight, IconDots, IconDotsV, IconArrowRight, IconCheck, IconTrash, IconInfo, IconHistory, IconCheckCircle2, IconReceipt, IconMapPin, IconSearch, IconX, IconNote, IconCalendar, IconHome, IconSettings, IconPlus } from "../components/shared/icons";
 import DeleteSettlementSheet from "../features/settlements/components/DeleteSettlementSheet";
 import SettlementDetailSheet from "../features/settlements/components/SettlementDetailSheet";
 import Badge from "../components/shared/Badge";
@@ -87,13 +87,6 @@ import { computeSuggestedPayments } from "../features/settlements/settlementUtil
 // CATEGORY_META moved to src/lib/categoryMeta.tsx
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
-function IconPlus({ size = 20 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round">
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
-}
 function IconWifiOff({ size = 14 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -119,10 +112,6 @@ function IconCloud({ size = 13 }: { size?: number }) {
     </svg>
   );
 }
-// Icons moved to src/components/shared/icons.tsx
-// Icons moved to src/components/shared/icons.tsx
-// IconHistory moved to src/components/shared/icons.tsx
-// IconCheckCircle2 moved to src/components/shared/icons.tsx
 
 // `Avatar` moved to `src/components/shared/Avatar.tsx`
 
@@ -263,6 +252,16 @@ import ExpensesView from "../features/expenses/ExpensesView";
 
 // SettlementView extracted to src/features/settlements/SettlementView.tsx
 
+// ─── URL invite token parsing ────────────────────────────────────────────────
+
+function parseJoinTokenFromUrl(): string | null {
+  const path = window.location.pathname;
+  const match = path.match(/^\/join\/([^/]+)\/?$/);
+  if (!match) return null;
+  const token = decodeURIComponent(match[1]).trim();
+  return token.length > 0 ? token : null;
+}
+
 // ─── App Shell ────────────────────────────────────────────────────────────────
 type Screen = "tourList" | "createTour" | "inviteMembers" | "inviteAccept" | "joinTrip" | "tour";
 
@@ -279,7 +278,9 @@ export default function App() {
   const [creating, setCreating]               = useState(false);
   const [createError, setCreateError]         = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string | null>(null);
-  const [joinToken, setJoinToken]             = useState<string | null>(null);
+  const urlJoinTokenRef                       = useRef<string | null>(parseJoinTokenFromUrl());
+  const [pendingJoinToken, setPendingJoinToken] = useState<string | null>(null);
+  const [pendingInviteTrip, setPendingInviteTrip] = useState<Trip | null>(null);
 
   const currentTrip = trips.find((t) => t.id === currentTripId) ?? trips[0] ?? {
     id: "", name: "", dates: "", status: "active" as const,
@@ -289,6 +290,11 @@ export default function App() {
   // ── Session restoration on mount ────────────────────────────────────────────
   useEffect(() => {
     let mounted = true;
+    const urlToken = urlJoinTokenRef.current;
+    if (urlToken) {
+      window.history.replaceState({}, "", "/");
+    }
+
     getCurrentUser().then(async (user) => {
       if (!mounted) return;
       setCurrentUser(user);
@@ -305,8 +311,14 @@ export default function App() {
         }
         await loadTripsForUser(user.id, mounted);
 
+        if (urlToken && mounted) {
+          setScreen("joinTrip");
+          return;
+        }
+
         const pendingJoin = localStorage.getItem("triply_pending_join_token");
         if (pendingJoin && mounted) {
+          setPendingJoinToken(pendingJoin);
           localStorage.removeItem("triply_pending_join_token");
           setScreen("joinTrip");
         }
@@ -321,6 +333,7 @@ export default function App() {
     const pendingJoin = localStorage.getItem("triply_pending_join_token");
     if (pendingJoin) {
       localStorage.removeItem("triply_pending_join_token");
+      setPendingJoinToken(pendingJoin);
       setScreen("joinTrip");
     }
   }, [isAuthenticated]);
@@ -387,7 +400,8 @@ export default function App() {
       setTrips((prev) => [...prev, newTrip]);
       setCurrentTripId(newTrip.id);
       setActiveTourId(newTrip.id);
-      setScreen("tour");
+      setPendingInviteTrip(newTrip);
+      setScreen("inviteMembers");
     } catch (err) {
       console.error("[app] create trip failed:", err);
       setCreateError(
@@ -404,9 +418,24 @@ export default function App() {
     return (
       <InviteAcceptFlow
         isAuthenticated={isAuthenticated}
-        onAuthenticate={() => setIsAuthenticated(true)}
-        onJoined={() => { setIsAuthenticated(true); setActiveTourId("joined"); setScreen("tour"); }}
-        onGoToTours={() => { setIsAuthenticated(true); setScreen("tourList"); }}
+        onAuthenticate={async () => {
+          const user = await getCurrentUser();
+          setCurrentUser(user);
+          setIsAuthenticated(true);
+        }}
+        onJoined={async () => {
+          const user = await getCurrentUser();
+          setCurrentUser(user);
+          setIsAuthenticated(true);
+          setActiveTourId("joined");
+          setScreen("tour");
+        }}
+        onGoToTours={async () => {
+          const user = await getCurrentUser();
+          setCurrentUser(user);
+          setIsAuthenticated(true);
+          setScreen("tourList");
+        }}
       />
     );
   }
@@ -420,7 +449,11 @@ export default function App() {
       </div>
     );
   }
-  if (!isAuthenticated) return <AuthFlow onAuthenticate={() => setIsAuthenticated(true)} />;
+  if (!isAuthenticated) return <AuthFlow onAuthenticate={async () => {
+    const user = await getCurrentUser();
+    setCurrentUser(user);
+    setIsAuthenticated(true);
+  }} />;
   if (screen === "createTour") {
     return (
       <>
@@ -451,10 +484,32 @@ export default function App() {
     );
   }
   if (screen === "inviteMembers") {
-    return <InviteMembers tourName={currentTrip.name} tourDates={currentTrip.dates} inviteCode={currentTrip.inviteCode ?? currentTrip.id} onBack={() => setScreen("createTour")} onDone={() => setScreen("tour")} />;
+    const inviteTrip = pendingInviteTrip ?? currentTrip;
+    return <InviteMembers tourName={inviteTrip.name} tourDates={inviteTrip.dates} inviteCode={inviteTrip.inviteCode ?? ""} members={inviteTrip.members} onAddGuest={(name) => {
+      if (!inviteTrip.id) return;
+      return addGuest({ tripId: inviteTrip.id, name }).then((member) => {
+        setTrips((prev) => prev.map((t) => t.id === inviteTrip.id ? { ...t, members: [...t.members, member] } : t));
+        setPendingInviteTrip((prev) => prev ? { ...prev, members: [...prev.members, member] } : prev);
+        return member;
+      });
+    }} onBack={() => { setPendingInviteTrip(null); setScreen("tour"); }} onDone={() => { setPendingInviteTrip(null); setScreen("tour"); }} />;
   }
   if (screen === "joinTrip") {
-    return <JoinTripScreen onBack={() => setScreen("tourList")} onJoined={() => { setScreen("tour"); loadTripsForUser(currentUser!.id, true); }} />;
+    return <JoinTripScreen
+      initialToken={urlJoinTokenRef.current ?? pendingJoinToken ?? undefined}
+      onBack={() => { setPendingJoinToken(null); setScreen("tourList"); }}
+      onJoined={(tripId) => {
+        setPendingJoinToken(null);
+        urlJoinTokenRef.current = null;
+        setScreen("tour");
+        loadTripsForUser(currentUser!.id, true).then(() => {
+          if (tripId) {
+            setCurrentTripId(tripId);
+            setActiveTourId(tripId);
+          }
+        });
+      }}
+    />;
   }
   if (screen === "tourList") {
     return <TourList onSelectTour={(id: string) => { setActiveTourId(id); setScreen("tour"); }} onNewTour={() => setScreen("createTour")} />;
@@ -541,6 +596,7 @@ function AuthenticatedApp({
   const [tripDetailId,        setTripDetailId]        = useState<string | null>(null);
   const [settlementError,     setSettlementError]     = useState<string | null>(null);
   const [tripError,           setTripError]           = useState<string | null>(null);
+  const [inviteTrip,          setInviteTrip]          = useState<Trip | null>(null);
 
   const mobileScrollRef = useRef<HTMLDivElement>(null);
   const handleMobileScroll = () => setScrolled((mobileScrollRef.current?.scrollTop ?? 0) > 6);
@@ -835,6 +891,7 @@ function AuthenticatedApp({
           onRenameMember={handleRenameMember}
           onRemoveMember={handleRemoveMember}
           tourName={currentTrip.name}
+          inviteCode={currentTrip.inviteCode}
         />
       )}
       {tab === "settlement" && (
@@ -876,10 +933,10 @@ function AuthenticatedApp({
   );
 
   return (
-    <div className="h-full bg-[#F4F6F9] overflow-hidden">
+    <div className="h-full overflow-hidden bg-[#E2E8F0]">
       {tripError && (
         <div className="fixed top-0 left-0 right-0 z-50 px-4 pt-3">
-          <div className="bg-[#FEE2E2] border border-[#FECACA] rounded-[12px] px-4 py-3 flex items-center justify-between max-w-[600px] mx-auto">
+          <div className="bg-[#FEE2E2] border border-[#FECACA] rounded-[12px] px-4 py-3 flex items-center justify-between max-w-[480px] mx-auto">
             <p className="text-[13px] font-600 text-[#DC2626]">{tripError}</p>
             <button onClick={clearTripError} className="text-[#DC2626] font-700 text-[13px] shrink-0 ml-3">Dismiss</button>
           </div>
@@ -887,7 +944,7 @@ function AuthenticatedApp({
       )}
 
       {/* ══ MOBILE ══ */}
-      <div className="flex flex-col h-full lg:hidden">
+      <div className="mx-auto w-full max-w-[480px] flex flex-col h-full lg:hidden">
         {tab !== "home" && tab !== "trips" && (
           <div className={`sticky top-0 z-20 bg-white transition-shadow duration-200 ${scrolled ? "shadow-[0_1px_12px_rgba(15,23,42,0.07)]" : "border-b border-[#E1E7EF]"}`}>
             <div className="safe-top" />
@@ -914,7 +971,7 @@ function AuthenticatedApp({
           <PageContent />
         </div>
 
-        <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E1E7EF] safe-bottom">
+        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-20 bg-white border-t border-[#E1E7EF] safe-bottom">
           <BottomNav
             activeTab={tab}
             onTabChange={setTab}
@@ -1053,9 +1110,30 @@ function AuthenticatedApp({
               onAddGuest={handleAddGuest}
               onRenameMember={handleRenameMember}
               onRemoveMember={handleRemoveMember}
+              inviteCode={currentTrip.inviteCode}
             />
           </div>
         </div>
+      )}
+
+      {/* ── Invite Members (post-create or Trip Details → Invite) ──────────── */}
+      {inviteTrip && (
+        <InviteMembers
+          tourName={inviteTrip.name}
+          tourDates={inviteTrip.dates}
+          inviteCode={inviteTrip.inviteCode ?? ""}
+          members={inviteTrip.members}
+          onAddGuest={(name) => {
+            if (!inviteTrip.id) return;
+            return addGuest({ tripId: inviteTrip.id, name }).then((member) => {
+              setTrips((prev) => prev.map((t) => t.id === inviteTrip.id ? { ...t, members: [...t.members, member] } : t));
+              setInviteTrip((prev) => prev ? { ...prev, members: [...prev.members, member] } : prev);
+              return member;
+            });
+          }}
+          onBack={() => setInviteTrip(null)}
+          onDone={() => setInviteTrip(null)}
+        />
       )}
 
       {/* ── Trip Details ───────────────────────────────────────────────────── */}
@@ -1071,6 +1149,10 @@ function AuthenticatedApp({
               }}
               onViewMembers={() => setSubScreen({ type: "members" })}
               onTapMember={() => setSubScreen({ type: "members" })}
+              onInvite={() => {
+                setTripDetailId(null);
+                setInviteTrip(currentTrip);
+              }}
               onSaveTrip={handleSaveTrip}
               onDeleteTrip={handleDeleteTrip}
               onGoHome={() => { setTripDetailId(null); setTab("home"); }}

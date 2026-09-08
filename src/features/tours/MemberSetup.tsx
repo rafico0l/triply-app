@@ -1,6 +1,6 @@
 import { useState, useRef, useId } from "react";
 import Avatar from "../../components/shared/Avatar";
-import { IconTrash } from "../../components/shared/icons";
+import { IconTrash, IconChevronLeft, IconDots, IconPlus, IconEdit } from "../../components/shared/icons";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface SetupMember {
@@ -54,40 +54,7 @@ function uid(): string {
 }
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
-function IconChevronLeft({ size = 20 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M15 18l-6-6 6-6" />
-    </svg>
-  );
-}
-
-function IconDots({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      <circle cx="5"  cy="12" r="1.2" fill="currentColor" />
-      <circle cx="12" cy="12" r="1.2" fill="currentColor" />
-      <circle cx="19" cy="12" r="1.2" fill="currentColor" />
-    </svg>
-  );
-}
-
-function IconPlus({ size = 15 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
-}
-
-function IconPencil({ size = 14 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-    </svg>
-  );
-}
+// Shared icons imported above (IconChevronLeft, IconDots, IconPlus, IconEdit)
 
 
 
@@ -111,7 +78,7 @@ function OverflowMenu({
           onClick={() => { onEdit(); onClose(); }}
           className="pressable flex items-center gap-2.5 w-full px-4 py-3 text-[14px] font-600 text-[#0F172A] hover:bg-[#F4F6F9] transition-colors"
         >
-          <span className="text-[#475569]"><IconPencil size={14} /></span>
+          <span className="text-[#475569]"><IconEdit size={14} /></span>
           Edit name
         </button>
         <div className="h-px bg-[#F1F5F9] mx-3" />

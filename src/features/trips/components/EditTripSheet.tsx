@@ -1,6 +1,6 @@
 import { useState, useId } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Calendar01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { Calendar01Icon, ArrowRight01Icon, AlertCircleIcon } from "@hugeicons/core-free-icons";
 import Sheet from "../../../components/shared/Sheet";
 import type { Trip } from "../../../domain/trip";
 
@@ -80,9 +80,7 @@ export default function EditTripSheet({ trip, onSave, onClose }: {
             />
             {touchedName && !trimmedName && (
               <p className="text-[12px] font-500 text-[#DC2626] flex items-center gap-1">
-                <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
-                </svg>
+                <HugeiconsIcon icon={AlertCircleIcon} size={12} color="currentColor" strokeWidth={2.5} />
                 Trip name is required.
               </p>
             )}
@@ -173,9 +171,7 @@ export default function EditTripSheet({ trip, onSave, onClose }: {
               </div>
               {budgetStr !== "" && !budgetValid && (
                 <p className="text-[12px] font-500 text-[#DC2626] flex items-center gap-1">
-                  <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
-                  </svg>
+                  <HugeiconsIcon icon={AlertCircleIcon} size={12} color="currentColor" strokeWidth={2.5} />
                   Budget must be greater than 0.
                 </p>
               )}

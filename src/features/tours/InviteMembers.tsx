@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   ArrowLeft01Icon,
@@ -10,21 +10,34 @@ import {
   UserAdd01Icon,
   ChevronRightIcon,
 } from "@hugeicons/core-free-icons";
+import { Avatar } from "../../components/shared/Avatar";
+import AddGuestSheet from "../members/components/AddGuestSheet";
+import type { Member } from "../../domain/types";
 
 // ─── InviteMembers ────────────────────────────────────────────────────────────
 interface InviteMembersProps {
   tourName:  string;
   tourDates: string;
   inviteCode: string;
+  members?:  Member[];
+  onAddGuest?: (name: string) => Promise<Member> | void;
   onBack:    () => void;
   onDone:    () => void;
 }
 
 const INVITE_BASE = typeof window !== "undefined" ? `${window.location.origin}/join` : "https://tourapp.com/join";
 
-export default function InviteMembers({ tourName, tourDates, inviteCode, onBack, onDone }: InviteMembersProps) {
+export default function InviteMembers({ tourName, tourDates, inviteCode, members, onAddGuest, onBack, onDone }: InviteMembersProps) {
   const [copied, setCopied] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [showAddGuest, setShowAddGuest] = useState(false);
+  const [localMembers, setLocalMembers] = useState<Member[]>(members ?? []);
+  const hasCode = !!inviteCode;
   const inviteUrl = `${INVITE_BASE}/${inviteCode}`;
+
+  useEffect(() => {
+    setLocalMembers(members ?? []);
+  }, [members]);
 
   function handleCopy() {
     navigator.clipboard.writeText(inviteUrl).catch(() => {});
@@ -40,7 +53,22 @@ export default function InviteMembers({ tourName, tourDates, inviteCode, onBack,
         url:   inviteUrl,
       }).catch(() => {});
     } else {
-      handleCopy();
+      navigator.clipboard.writeText(inviteUrl).catch(() => {});
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2200);
+    }
+  }
+
+  async function handleAddGuest(name: string) {
+    setShowAddGuest(false);
+    if (onAddGuest) {
+      const result = onAddGuest(name);
+      if (result && typeof (result as Promise<Member>).then === "function") {
+        try {
+          const member = await result;
+          setLocalMembers((prev) => [...prev, member]);
+        } catch { /* parent handles error */ }
+      }
     }
   }
 
@@ -98,14 +126,17 @@ export default function InviteMembers({ tourName, tourDates, inviteCode, onBack,
                   <HugeiconsIcon icon={Link01Icon} size={15} color="currentColor" strokeWidth={1.75} />
                 </span>
                  <p className="flex-1 min-w-0 text-[13px] font-600 text-[#0F172A] truncate font-mono tracking-tight select-all">
-                  {inviteUrl}
+                  {hasCode ? inviteUrl : "Invite link isn't available yet."}
                 </p>
                 <button
                   onClick={handleCopy}
+                  disabled={!hasCode}
                   className={`pressable shrink-0 w-8 h-8 flex items-center justify-center rounded-[8px] transition-colors ${
-                    copied
-                      ? "bg-[#F0FDF4] text-[#15803D]"
-                      : "text-[#94A3B8] hover:bg-[#E1E7EF] hover:text-[#475569]"
+                    !hasCode
+                      ? "text-[#C9D4DF] cursor-not-allowed"
+                      : copied
+                        ? "bg-[#F0FDF4] text-[#15803D]"
+                        : "text-[#94A3B8] hover:bg-[#E1E7EF] hover:text-[#475569]"
                   }`}
                   aria-label={copied ? "Link copied" : "Copy invite link"}
                 >
@@ -125,17 +156,27 @@ export default function InviteMembers({ tourName, tourDates, inviteCode, onBack,
             <div className="px-4 pb-4">
               <button
                 onClick={handleShare}
-                className="pressable w-full h-[44px] rounded-[12px] border border-[#0A86A0] text-[#0A86A0] font-600 text-[14px] flex items-center justify-center gap-2 hover:bg-[#EFF9FB] transition-colors"
+                disabled={!hasCode}
+                className={`pressable w-full h-[44px] rounded-[12px] font-600 text-[14px] flex items-center justify-center gap-2 transition-colors ${
+                  !hasCode
+                    ? "bg-[#F4F6F9] border border-[#E1E7EF] text-[#C9D4DF] cursor-not-allowed"
+                    : shareCopied
+                      ? "bg-[#F0FDF4] border border-[#BBF7D0] text-[#15803D]"
+                      : "border border-[#0A86A0] text-[#0A86A0] hover:bg-[#EFF9FB]"
+                }`}
               >
-                <HugeiconsIcon icon={Share01Icon} size={16} color="currentColor" strokeWidth={1.75} />
-                Share invite
+                {shareCopied ? (
+                  <><HugeiconsIcon icon={CheckIcon} size={16} color="currentColor" strokeWidth={2.5} />Link copied</>
+                ) : (
+                  <><HugeiconsIcon icon={Share01Icon} size={16} color="currentColor" strokeWidth={1.75} />Share invite</>
+                )}
               </button>
             </div>
           </div>
 
           {/* ── Add guest ──────────────────────────────────────────────────── */}
           <button
-            onClick={() => {/* opens guest sheet — preserved placeholder */}}
+            onClick={() => setShowAddGuest(true)}
             className="pressable w-full flex items-center gap-3.5 bg-white rounded-[14px] border border-[#E1E7EF] px-4 py-3.5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] text-left"
           >
             <div className="w-9 h-9 rounded-[10px] bg-[#F4F6F9] border border-[#E1E7EF] flex items-center justify-center shrink-0">
@@ -149,6 +190,31 @@ export default function InviteMembers({ tourName, tourDates, inviteCode, onBack,
               <HugeiconsIcon icon={ChevronRightIcon} size={18} color="currentColor" strokeWidth={2} />
             </span>
           </button>
+
+          {/* ── Members list ─────────────────────────────────────────────── */}
+          {localMembers.length > 0 && (
+            <div>
+              <p className="text-[11px] font-700 text-[#94A3B8] uppercase tracking-wider px-1 mb-2">
+                Members · {localMembers.length}
+              </p>
+              <div className="bg-white rounded-[14px] border border-[#E1E7EF] overflow-hidden divide-y divide-[#F4F6F9]">
+                {localMembers.map((m) => (
+                  <div key={m.id} className="flex items-center gap-3 px-4 py-3">
+                    <Avatar member={{ initials: m.initials, color: m.color }} size={36} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[14px] font-600 text-[#0F172A] truncate">{m.name}{m.isMe ? " (You)" : ""}</p>
+                    </div>
+                    {m.role === "owner" && (
+                      <span className="text-[11px] font-600 text-[#94A3B8] bg-[#F4F6F9] rounded-full px-2 py-0.5">Owner</span>
+                    )}
+                    {m.role === "guest" && (
+                      <span className="text-[11px] font-600 text-[#64748B] bg-[#F4F6F9] rounded-full px-2 py-0.5">Guest</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
         </div>
       </div>
@@ -164,6 +230,11 @@ export default function InviteMembers({ tourName, tourDates, inviteCode, onBack,
           </button>
         </div>
       </div>
+
+      {/* ── Add Guest Sheet ─────────────────────────────────────────────────── */}
+      {showAddGuest && onAddGuest && (
+        <AddGuestSheet onClose={() => setShowAddGuest(false)} onAdd={handleAddGuest} />
+      )}
     </div>
   );
 }

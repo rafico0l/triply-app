@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from "react";
 import { fmt } from "../../lib/format";
-import { IconMapPin } from "../../components/shared/icons";
+import { IconMapPin, IconPlus, IconCalendar, IconChevronRight } from "../../components/shared/icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Compass01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type TourStatus = "active" | "upcoming" | "completed";
@@ -55,48 +57,12 @@ const TOURS: Tour[] = [
 ];
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
-function IconPlus({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round">
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
-}
-
 function IconUsers({ size = 13 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
-    </svg>
-  );
-}
-
-function IconCalendar({ size = 13 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="4" width="18" height="18" rx="2" />
-      <path d="M16 2v4M8 2v4M3 10h18" />
-    </svg>
-  );
-}
-
-function IconChevronRight({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 18l6-6-6-6" />
-    </svg>
-  );
+  return <HugeiconsIcon icon={UserGroupIcon} size={size} color="currentColor" strokeWidth={2} />;
 }
 
 function IconCompass({ size = 28 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <path d="M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z" />
-    </svg>
-  );
+  return <HugeiconsIcon icon={Compass01Icon} size={size} color="currentColor" strokeWidth={1.75} />;
 }
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────

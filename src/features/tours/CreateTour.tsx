@@ -9,6 +9,7 @@ import {
   ChevronDownIcon,
   Image01Icon,
   Upload01Icon,
+  AlertCircleIcon,
 } from "@hugeicons/core-free-icons";
 import BottomNav from "../../components/navigation/BottomNav";
 
@@ -75,9 +76,7 @@ function Field({
       {children}
       {error && (
         <p className="text-[12px] font-500 text-[#DC2626] flex items-center gap-1">
-          <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
-          </svg>
+          <HugeiconsIcon icon={AlertCircleIcon} size={12} color="currentColor" strokeWidth={2.5} />
           {error}
         </p>
       )}
@@ -283,9 +282,7 @@ export default function CreateTour({ onBack, onCreate }: {
             </div>
             {(errors.startDate || errors.endDate) && (
               <p className="text-[12px] font-500 text-[#DC2626] flex items-center gap-1">
-                <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
-                </svg>
+                <HugeiconsIcon icon={AlertCircleIcon} size={12} color="currentColor" strokeWidth={2.5} />
                 {errors.startDate ?? errors.endDate}
               </p>
             )}

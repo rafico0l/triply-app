@@ -10,7 +10,7 @@ const JOIN_TOKEN_KEY = "triply_pending_join_token";
 interface JoinTripScreenProps {
   initialToken?: string;
   onBack: () => void;
-  onJoined: () => void;
+  onJoined: (tripId?: string) => void;
 }
 
 export default function JoinTripScreen({ initialToken, onBack, onJoined }: JoinTripScreenProps) {
@@ -44,7 +44,7 @@ export default function JoinTripScreen({ initialToken, onBack, onJoined }: JoinT
       setResult(res);
       localStorage.removeItem(JOIN_TOKEN_KEY);
       setTimeout(() => {
-        onJoined();
+        onJoined(res.tripId);
       }, 800);
     } catch (err) {
       if (err instanceof TripRepositoryError) {
@@ -114,7 +114,7 @@ export default function JoinTripScreen({ initialToken, onBack, onJoined }: JoinT
                 <input
                   type="text"
                   value={token}
-                  onChange={(e) => setToken(e.target.value.toUpperCase())}
+                  onChange={(e) => setToken(e.target.value)}
                   placeholder="e.g. ABC123"
                   className="flex-1 bg-white border border-[#E1E7EF] rounded-[11px] px-4 h-12 text-[15px] font-600 text-[#0F172A] placeholder:text-[#C9D4DF] outline-none focus:border-[#0A86A0] transition-colors"
                   disabled={loading || !!result}

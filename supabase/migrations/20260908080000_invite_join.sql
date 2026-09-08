@@ -20,6 +20,7 @@ DECLARE
   target_trip_id uuid;
   existing_member_id uuid;
   existing_role text;
+  p_name text;
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'Not authenticated';
@@ -34,9 +35,9 @@ BEGIN
     RAISE EXCEPTION 'Invite not found';
   END IF;
 
-  SELECT id, role INTO existing_member_id, existing_role
-  FROM public.trip_members
-  WHERE trip_id = target_trip_id AND user_id = auth.uid()
+  SELECT tm.id, tm.role INTO existing_member_id, existing_role
+  FROM public.trip_members AS tm
+  WHERE tm.trip_id = target_trip_id AND tm.user_id = auth.uid()
   LIMIT 1;
 
   IF existing_member_id IS NOT NULL THEN
@@ -47,10 +48,22 @@ BEGIN
     RETURN;
   END IF;
 
-  INSERT INTO public.trip_members (trip_id, user_id, role)
-  VALUES (target_trip_id, auth.uid(), 'member')
-  RETURNING id, trip_id, role
-  INTO member_id, trip_id, role;
+  SELECT pr.name INTO p_name
+  FROM public.profiles AS pr
+  WHERE pr.id = auth.uid()
+  LIMIT 1;
+
+  IF p_name IS NULL OR p_name = '' THEN
+    p_name := 'Member';
+  END IF;
+
+  INSERT INTO public.trip_members (trip_id, user_id, name, role)
+  VALUES (target_trip_id, auth.uid(), p_name, 'member');
+
+  SELECT tm.id, tm.trip_id, tm.role INTO member_id, trip_id, role
+  FROM public.trip_members AS tm
+  WHERE tm.trip_id = target_trip_id AND tm.user_id = auth.uid()
+  LIMIT 1;
 
   RETURN NEXT;
 END;

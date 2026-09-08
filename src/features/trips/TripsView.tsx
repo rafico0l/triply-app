@@ -146,7 +146,7 @@ export default function TripsView({
       )}
 
       {/* ── Floating New Trip Action ────────────────────────────────────── */}
-      <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+60px+16px)] left-0 right-0 z-20 flex justify-center pointer-events-none">
+      <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+60px+16px)] left-1/2 -translate-x-1/2 w-full max-w-[480px] z-20 flex justify-center pointer-events-none">
         <button
           onClick={onNewTour}
           className="pressable pointer-events-auto inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#0A86A0] text-white font-700 text-[14px] shadow-[0 4px_16px_rgba(10,134,160,0.3)] hover:bg-[#087288] transition-colors active:scale-95"
