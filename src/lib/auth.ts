@@ -168,6 +168,30 @@ export async function ensureCurrentUserProfile(): Promise<void> {
   }
 }
 
+/**
+ * Get the current authenticated user's display name.
+ *
+ * Resolution order:
+ * 1. public.profiles.name
+ * 2. auth user_metadata.name
+ * 3. null (no usable name)
+ */
+export async function getCurrentUserProfileName(): Promise<string | null> {
+  const sb = getSupabase();
+  const { data } = await sb.auth.getUser();
+  const user = data.user;
+
+  if (!user) return null;
+
+  const { data: profile } = await sb
+    .from("profiles")
+    .select("name")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  return profile?.name ?? (user.user_metadata?.name as string | undefined) ?? null;
+}
+
 // ── Error Mapping ────────────────────────────────────────────────────────────
 
 /**

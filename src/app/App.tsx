@@ -17,7 +17,7 @@ import TripsView from "../features/trips/TripsView";
 import TripDetailsView from "../features/trips/TripDetailsView";
 import { computeAllMemberFinancials, toMajorUnits } from "../domain/finance";
 import type { Trip } from "../domain/trip";
-import { signOut, getCurrentUser, ensureCurrentUserProfile } from "../lib/auth";
+import { signOut, getCurrentUser, ensureCurrentUserProfile, getCurrentUserProfileName } from "../lib/auth";
 import { getSupabase } from "../lib/supabase";
 import { loadTrips, TripRepositoryError, createTrip } from "../lib/tripRepository";
 import type { User } from "@supabase/supabase-js";
@@ -277,6 +277,7 @@ export default function App() {
   const [tripLoadError, setTripLoadError]     = useState<string | null>(null);
   const [creating, setCreating]               = useState(false);
   const [createError, setCreateError]         = useState<string | null>(null);
+  const [currentUserName, setCurrentUserName] = useState<string | null>(null);
 
   // ── Session restoration on mount ────────────────────────────────────────────
   useEffect(() => {
@@ -290,8 +291,10 @@ export default function App() {
       if (user) {
         try {
           await ensureCurrentUserProfile();
+          const name = await getCurrentUserProfileName();
+          if (mounted) setCurrentUserName(name);
         } catch (profileErr) {
-          console.error("[app] profile repair failed:", profileErr);
+          console.error("[app] profile repair/name fetch failed:", profileErr);
         }
         await loadTripsForUser(user.id, mounted);
       }
@@ -343,7 +346,7 @@ export default function App() {
 
   async function handleCreateTour(data: CreateTourData, coverImageUrl: string | null) {
     const budgetNum = data.budget ? Number(data.budget) : undefined;
-    const ownerName = currentUser?.user_metadata?.name ?? currentUser?.email ?? "You";
+    const ownerName = currentUserName ?? currentUser?.user_metadata?.name ?? currentUser?.email ?? "You";
 
     setCreating(true);
     setCreateError(null);
@@ -478,12 +481,14 @@ export default function App() {
     onSelectTour={(id: string) => setActiveTourId(id)}
     onSignOut={handleSignOut}
     currentUser={currentUser}
+    currentUserName={currentUserName}
   />;
 }
 
 function AuthenticatedApp({
   isEmpty = false, onNewTour, onSelectTour, onSignOut, currentUser,
   trips, setTrips, currentTripId, setCurrentTripId,
+  currentUserName,
 }: {
   isEmpty?: boolean;
   onNewTour: () => void;
@@ -494,6 +499,7 @@ function AuthenticatedApp({
   setTrips: React.Dispatch<React.SetStateAction<Trip[]>>;
   currentTripId: string;
   setCurrentTripId: React.Dispatch<React.SetStateAction<string>>;
+  currentUserName: string | null;
 }) {
   const [tab,                 setTab]                 = useState<Tab>("home");
   const [syncStatus]                                  = useState<SyncStatus>("pending");
@@ -628,7 +634,7 @@ function AuthenticatedApp({
 
   const PageContent = () => (
     <>
-      {tab === "home"       && <HomeView       expenses={currentExpenses} members={currentMembers} onTabChange={setTab} empty={isEmpty} onAddExpense={() => setShowAddExpense(true)} onSettle={() => setTab("settlement")} />}
+      {tab === "home"       && <HomeView       expenses={currentExpenses} members={currentMembers} onTabChange={setTab} empty={isEmpty} onAddExpense={() => setShowAddExpense(true)} onSettle={() => setTab("settlement")} currentUserName={currentUserName ?? undefined} />}
       {tab === "trips"      && <TripsView trips={trips} onNewTour={onNewTour} onBack={() => setTab("home")} onSelectTour={(id) => { setCurrentTripId(id); setTab("home"); }} />}
       {tab === "expenses"   && <ExpensesView   expenses={currentExpenses} members={currentMembers} onTapExpense={(id) => setSubScreen({ type: "expense-detail", id })} />}
       {tab === "members"    && (

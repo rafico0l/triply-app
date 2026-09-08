@@ -11,6 +11,7 @@ export default function HomeView({
   empty = false,
   onAddExpense,
   onSettle,
+  currentUserName,
 }: {
   expenses: Expense[];
   members: Member[];
@@ -18,9 +19,10 @@ export default function HomeView({
   empty?: boolean;
   onAddExpense?: () => void;
   onSettle?: () => void;
+  currentUserName?: string;
 }) {
   const me = members.find((m) => m.isMe);
-  const userName = me?.isMe ? "Raficool" : me?.name ?? "You";
+  const userName = currentUserName ?? me?.name ?? "You";
 
   return (
     <div className="bg-[#F4F6F9] min-h-full">
