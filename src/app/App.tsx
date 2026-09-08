@@ -4,6 +4,7 @@ import TourList from "../features/tours/TourList";
 import CreateTour, { type CreateTourData } from "../features/tours/CreateTour";
 import InviteMembers from "../features/tours/InviteMembers";
 import InviteAcceptFlow from "../features/tours/InviteAccept";
+import JoinTripScreen from "../features/tours/JoinTrip";
 import AddExpense from "../features/expenses/AddExpense";
 import { Avatar } from "../components/shared/Avatar";
 import { fmt } from "../lib/format";
@@ -263,7 +264,7 @@ import ExpensesView from "../features/expenses/ExpensesView";
 // SettlementView extracted to src/features/settlements/SettlementView.tsx
 
 // ─── App Shell ────────────────────────────────────────────────────────────────
-type Screen = "tourList" | "createTour" | "inviteMembers" | "inviteAccept" | "tour";
+type Screen = "tourList" | "createTour" | "inviteMembers" | "inviteAccept" | "joinTrip" | "tour";
 
 export default function App() {
   const [authLoading,    setAuthLoading]    = useState(true);
@@ -278,6 +279,7 @@ export default function App() {
   const [creating, setCreating]               = useState(false);
   const [createError, setCreateError]         = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string | null>(null);
+  const [joinToken, setJoinToken]             = useState<string | null>(null);
 
   const currentTrip = trips.find((t) => t.id === currentTripId) ?? trips[0] ?? {
     id: "", name: "", dates: "", status: "active" as const,
@@ -302,10 +304,26 @@ export default function App() {
           console.error("[app] profile repair/name fetch failed:", profileErr);
         }
         await loadTripsForUser(user.id, mounted);
+
+        const pendingJoin = localStorage.getItem("triply_pending_join_token");
+        if (pendingJoin && mounted) {
+          localStorage.removeItem("triply_pending_join_token");
+          setScreen("joinTrip");
+        }
       }
     });
     return () => { mounted = false; };
   }, []);
+
+  // ── Resume pending join after auth state changes ────────────────────────────
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const pendingJoin = localStorage.getItem("triply_pending_join_token");
+    if (pendingJoin) {
+      localStorage.removeItem("triply_pending_join_token");
+      setScreen("joinTrip");
+    }
+  }, [isAuthenticated]);
 
   // ── Sign out handler ────────────────────────────────────────────────────────
   const handleSignOut = async () => {
@@ -433,7 +451,10 @@ export default function App() {
     );
   }
   if (screen === "inviteMembers") {
-    return <InviteMembers tourName={currentTrip.name} tourDates={currentTrip.dates} onBack={() => setScreen("createTour")} onDone={() => setScreen("tour")} />;
+    return <InviteMembers tourName={currentTrip.name} tourDates={currentTrip.dates} inviteCode={currentTrip.inviteCode ?? currentTrip.id} onBack={() => setScreen("createTour")} onDone={() => setScreen("tour")} />;
+  }
+  if (screen === "joinTrip") {
+    return <JoinTripScreen onBack={() => setScreen("tourList")} onJoined={() => { setScreen("tour"); loadTripsForUser(currentUser!.id, true); }} />;
   }
   if (screen === "tourList") {
     return <TourList onSelectTour={(id: string) => { setActiveTourId(id); setScreen("tour"); }} onNewTour={() => setScreen("createTour")} />;
@@ -483,6 +504,7 @@ export default function App() {
     setCurrentTripId={setCurrentTripId}
     isEmpty={!activeTourId || activeTourId === "new"}
     onNewTour={() => setScreen("createTour")}
+    onJoinTour={() => setScreen("joinTrip")}
     onSelectTour={(id: string) => setActiveTourId(id)}
     onSignOut={handleSignOut}
     currentUser={currentUser}
@@ -492,12 +514,13 @@ export default function App() {
 }
 
 function AuthenticatedApp({
-  isEmpty = false, onNewTour, onSelectTour, onSignOut, currentUser,
+  isEmpty = false, onNewTour, onJoinTour, onSelectTour, onSignOut, currentUser,
   trips, setTrips, currentTripId, setCurrentTripId,
   currentUserName, currentTrip,
 }: {
   isEmpty?: boolean;
   onNewTour: () => void;
+  onJoinTour?: () => void;
   onSelectTour?: (id: string) => void;
   onSignOut: () => void;
   currentUser: User | null;
@@ -799,9 +822,9 @@ function AuthenticatedApp({
 
   const PageContent = () => (
     <>
-      {tab === "home"       && <HomeView       expenses={currentExpenses} members={currentMembers} onTabChange={setTab} empty={isEmpty} onAddExpense={() => setShowAddExpense(true)} onSettle={() => setTab("settlement")} currentUserName={currentUserName ?? undefined} budget={currentTrip.budget} tripName={currentTrip.name} tripDates={currentTrip.dates} onNewTour={onNewTour} />}
-      {tab === "trips"      && <TripsView trips={trips} onNewTour={onNewTour} onBack={() => setTab("home")} onSelectTour={(id) => { setCurrentTripId(id); setTripDetailId(id); }} />}
-      {tab === "expenses"   && <ExpensesView   expenses={currentExpenses} members={currentMembers} onTapExpense={(id) => setSubScreen({ type: "expense-detail", id })} onAddExpense={() => setShowAddExpense(true)} onNewTour={onNewTour} tripName={currentTrip.name} />}
+      {tab === "home"       && <HomeView       expenses={currentExpenses} members={currentMembers} onTabChange={setTab} empty={isEmpty} onAddExpense={() => setShowAddExpense(true)} onSettle={() => setTab("settlement")} currentUserName={currentUserName ?? undefined} budget={currentTrip.budget} tripName={currentTrip.name} tripDates={currentTrip.dates} onNewTour={onNewTour} onJoinTrip={onJoinTour} />}
+      {tab === "trips"      && <TripsView trips={trips} onNewTour={onNewTour} onBack={() => setTab("home")} onSelectTour={(id) => { setCurrentTripId(id); setTripDetailId(id); }} onJoinTour={onJoinTour} />}
+      {tab === "expenses"   && <ExpensesView   expenses={currentExpenses} members={currentMembers} onTapExpense={(id) => setSubScreen({ type: "expense-detail", id })} onAddExpense={() => setShowAddExpense(true)} onNewTour={onNewTour} onJoinTrip={onJoinTour} tripName={currentTrip.name} />}
       {tab === "members"    && (
         <MembersView
           members={currentMembers} expenses={currentExpenses}

@@ -16,6 +16,7 @@ export default function HomeView({
   tripName,
   tripDates,
   onNewTour,
+  onJoinTrip,
 }: {
   expenses: Expense[];
   members: Member[];
@@ -28,6 +29,7 @@ export default function HomeView({
   tripName?: string;
   tripDates?: string;
   onNewTour?: () => void;
+  onJoinTrip?: () => void;
 }) {
   const me = members.find((m) => m.isMe);
   const userName = currentUserName ?? me?.name ?? "You";
@@ -42,6 +44,7 @@ export default function HomeView({
         onAddExpense={onAddExpense}
         onSettle={onSettle}
         onNewTour={onNewTour}
+        onJoinTrip={onJoinTrip}
         budget={budget}
         tripName={tripName}
         tripDates={tripDates}

@@ -15,17 +15,19 @@ import {
 interface InviteMembersProps {
   tourName:  string;
   tourDates: string;
+  inviteCode: string;
   onBack:    () => void;
   onDone:    () => void;
 }
 
-const INVITE_URL = "tourapp.com/join/K7DQ92";
+const INVITE_BASE = typeof window !== "undefined" ? `${window.location.origin}/join` : "https://tourapp.com/join";
 
-export default function InviteMembers({ tourName, tourDates, onBack, onDone }: InviteMembersProps) {
+export default function InviteMembers({ tourName, tourDates, inviteCode, onBack, onDone }: InviteMembersProps) {
   const [copied, setCopied] = useState(false);
+  const inviteUrl = `${INVITE_BASE}/${inviteCode}`;
 
   function handleCopy() {
-    navigator.clipboard.writeText(`https://${INVITE_URL}`).catch(() => {});
+    navigator.clipboard.writeText(inviteUrl).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2200);
   }
@@ -35,7 +37,7 @@ export default function InviteMembers({ tourName, tourDates, onBack, onDone }: I
       navigator.share({
         title: `Join ${tourName}`,
         text:  `Track expenses together for ${tourName}. Join here:`,
-        url:   `https://${INVITE_URL}`,
+        url:   inviteUrl,
       }).catch(() => {});
     } else {
       handleCopy();
@@ -95,8 +97,8 @@ export default function InviteMembers({ tourName, tourDates, onBack, onDone }: I
                 <span className="text-[#0A86A0] shrink-0">
                   <HugeiconsIcon icon={Link01Icon} size={15} color="currentColor" strokeWidth={1.75} />
                 </span>
-                <p className="flex-1 min-w-0 text-[13px] font-600 text-[#0F172A] truncate font-mono tracking-tight select-all">
-                  {INVITE_URL}
+                 <p className="flex-1 min-w-0 text-[13px] font-600 text-[#0F172A] truncate font-mono tracking-tight select-all">
+                  {inviteUrl}
                 </p>
                 <button
                   onClick={handleCopy}

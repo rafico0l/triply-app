@@ -16,6 +16,7 @@ export default function BalanceCard({
   onAddExpense,
   onSettle,
   onNewTour,
+  onJoinTrip,
   budget,
   tripName,
   tripDates,
@@ -26,6 +27,7 @@ export default function BalanceCard({
   onAddExpense?: () => void;
   onSettle?: () => void;
   onNewTour?: () => void;
+  onJoinTrip?: () => void;
   budget?: number;
   tripName?: string;
   tripDates?: string;
@@ -57,11 +59,19 @@ export default function BalanceCard({
               <div className="flex flex-col gap-2">
                 <button
                   onClick={onNewTour}
-                  className="pressable flex items-center justify-center gap-1.5 px-5 h-11 rounded-[12px] bg-[#0A86A0] text-white font-700 text-[14px] shadow-[0_2px_8px_rgba(10,134,160,0.18)]"
+                  className="pressable flex items-center justify-center gap-1.5 px-5 h-11 rounded-[12px] bg-[#0A86A0] text-white font-700 text-[14px] shadow-[0 2px_8px_rgba(10,134,160,0.18)]"
                 >
                   <HugeiconsIcon icon={PlusIcon} size={16} color="currentColor" strokeWidth={2.5} />
                   Create your first trip
                 </button>
+                {onJoinTrip && (
+                  <button
+                    onClick={onJoinTrip}
+                    className="pressable flex items-center justify-center gap-1.5 px-5 h-11 rounded-[12px] bg-white text-[#0A86A0] font-700 text-[14px] border border-[#A3DFE9]"
+                  >
+                    Have an invite? Join a trip
+                  </button>
+                )}
               </div>
             }
           />

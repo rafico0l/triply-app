@@ -30,6 +30,7 @@ interface DbTrip {
   created_by: string;
   created_at: string;
   updated_at: string;
+  invite_code: string;
 }
 
 interface DbTripMember {
@@ -279,6 +280,7 @@ function mapTrip(
     status: dbTrip.status,
     budget: dbTrip.budget_minor != null ? toMajorUnits(dbTrip.budget_minor) : undefined,
     coverImage: dbTrip.cover_image ?? undefined,
+    inviteCode: dbTrip.invite_code,
     members,
     expenses,
     settlements,
@@ -344,6 +346,7 @@ export async function createTrip(
     budget_minor: input.budget && input.budget > 0 ? toMinorUnits(input.budget) : null,
     cover_image: input.coverImageUrl || null,
     created_by: userId,
+    invite_code: generateInviteCode(),
   };
 
   const { data: trip, error: tripError } = await sb
@@ -767,6 +770,71 @@ export async function removeMember(tripId: string, memberId: string): Promise<vo
       error
     );
   }
+}
+
+// ── Invite / Join ──────────────────────────────────────────────────────────────
+
+export interface JoinTripResult {
+  tripId: string;
+  memberId: string;
+  role: Member["role"];
+  isNewMember: boolean;
+}
+
+/**
+ * Join a trip using an invite code.
+ *
+ * Calls the secure RPC `join_trip_by_invite` which:
+ * - validates the invite
+ * - returns existing membership if already joined
+ * - otherwise creates a new member row
+ *
+ * Returns the trip/member info on success.
+ * Throws TripRepositoryError on failure.
+ */
+export async function joinTripByInvite(inviteToken: string): Promise<JoinTripResult> {
+  const sb = getSupabase();
+
+  if (!inviteToken.trim()) {
+    throw new TripRepositoryError("Missing invite code", "PARSE_FAILED");
+  }
+
+  const { data, error } = await sb.rpc("join_trip_by_invite", {
+    invite_token: inviteToken.trim(),
+  });
+
+  if (error) {
+    console.error("[tripRepository] join trip failed:", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
+    throw new TripRepositoryError(
+      "Failed to join trip",
+      "FETCH_FAILED",
+      error
+    );
+  }
+
+  if (!data || data.length === 0) {
+    throw new TripRepositoryError("Invite not found", "PARSE_FAILED");
+  }
+
+  const row = data[0];
+  return {
+    tripId: row.trip_id,
+    memberId: row.member_id,
+    role: row.role as Member["role"],
+    isNewMember: true,
+  };
+}
+
+/**
+ * Generate a unique invite code.
+ */
+export function generateInviteCode(): string {
+  return crypto.randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase();
 }
 
 // ── Expense mutations ──────────────────────────────────────────────────────────

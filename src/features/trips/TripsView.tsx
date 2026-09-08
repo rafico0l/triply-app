@@ -19,11 +19,13 @@ export default function TripsView({
   onNewTour,
   onBack,
   onSelectTour,
+  onJoinTour,
 }: {
   trips: Trip[];
   onNewTour: () => void;
   onBack?: () => void;
   onSelectTour?: (id: string) => void;
+  onJoinTour?: () => void;
 }) {
   const activeTours = trips.filter((t) => t.status === "active");
   const upcomingTours = trips.filter((t) => t.status === "upcoming");
@@ -71,13 +73,23 @@ export default function TripsView({
             title="No trips yet"
             body="Create your first trip to start tracking expenses with your group."
             action={
-              <button
-                onClick={onNewTour}
-                className="pressable inline-flex items-center gap-2 px-5 h-11 rounded-[12px] bg-[#0A86A0] text-white font-700 text-[14px] shadow-[0_2px_8px_rgba(10,134,160,0.18)]"
-              >
-                <HugeiconsIcon icon={PlusIcon} size={16} color="currentColor" strokeWidth={2.5} />
-                Create your first trip
-              </button>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={onNewTour}
+                  className="pressable inline-flex items-center gap-2 px-5 h-11 rounded-[12px] bg-[#0A86A0] text-white font-700 text-[14px] shadow-[0 2px_8px_rgba(10,134,160,0.18)]"
+                >
+                  <HugeiconsIcon icon={PlusIcon} size={16} color="currentColor" strokeWidth={2.5} />
+                  Create your first trip
+                </button>
+                {onJoinTour && (
+                  <button
+                    onClick={onJoinTour}
+                    className="pressable inline-flex items-center gap-2 px-5 h-11 rounded-[12px] bg-white text-[#0A86A0] font-700 text-[14px] border border-[#A3DFE9]"
+                  >
+                    Join a trip
+                  </button>
+                )}
+              </div>
             }
           />
         </div>

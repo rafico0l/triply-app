@@ -10,10 +10,10 @@ import ExpenseRow from "./components/ExpenseRow";
 type ExpenseFilter = "all" | "i-paid" | "my-expenses";
 
 export default function ExpensesView({
-  expenses, members, onTapExpense, onAddExpense, onNewTour, tripName,
+  expenses, members, onTapExpense, onAddExpense, onNewTour, onJoinTrip, tripName,
 }: {
   expenses: Expense[]; members: Member[]; onTapExpense: (id: string) => void;
-  onAddExpense?: () => void; onNewTour?: () => void; tripName?: string;
+  onAddExpense?: () => void; onNewTour?: () => void; onJoinTrip?: () => void; tripName?: string;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<ExpenseFilter>("all");
@@ -157,13 +157,23 @@ export default function ExpensesView({
           }
           action={
             members.length === 0 && expenses.length === 0 && onNewTour ? (
-              <button
-                onClick={onNewTour}
-                className="pressable flex items-center gap-1.5 px-5 h-11 rounded-[12px] bg-[#0A86A0] text-white font-700 text-[14px] shadow-[0_2px_8px_rgba(10,134,160,0.18)]"
-              >
-                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
-                Create your first trip
-              </button>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={onNewTour}
+                  className="pressable flex items-center gap-1.5 px-5 h-11 rounded-[12px] bg-[#0A86A0] text-white font-700 text-[14px] shadow-[0 2px_8px_rgba(10,134,160,0.18)]"
+                >
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                  Create your first trip
+                </button>
+                {onJoinTrip && (
+                  <button
+                    onClick={onJoinTrip}
+                    className="pressable flex items-center gap-1.5 px-5 h-11 rounded-[12px] bg-white text-[#0A86A0] font-700 text-[14px] border border-[#A3DFE9]"
+                  >
+                    Have an invite? Join a trip
+                  </button>
+                )}
+              </div>
             ) : onAddExpense && !searchQuery && !hasActiveFilters ? (
               <button
                 onClick={onAddExpense}
