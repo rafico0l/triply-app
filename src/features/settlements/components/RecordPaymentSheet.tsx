@@ -50,7 +50,7 @@ export default function RecordPaymentSheet({
                   >
                     <Avatar member={m} size="sm" />
                     <span className={`flex-1 text-[15px] font-600 ${sel ? "text-[#0A86A0]" : "text-[#0F172A]"}`}>
-                      {m.isMe ? "Rafi (You)" : m.name}
+                      {m.isMe ? `${m.name} (You)` : m.name}
                     </span>
                     {sel && <span className="text-[#0A86A0]"><IconCheck size={16} /></span>}
                   </button>
@@ -81,7 +81,7 @@ export default function RecordPaymentSheet({
               <span className="text-[11px] font-700 text-[#94A3B8] uppercase tracking-wide w-10 shrink-0">From</span>
               <div className="flex items-center gap-2.5 flex-1 min-w-0">
                 {from ? (
-                  <><Avatar member={from} size="sm" /><span className="text-[15px] font-600 text-[#0F172A] truncate">{from.isMe ? "Rafi (You)" : from.name}</span></>
+                  <><Avatar member={from} size="sm" /><span className="text-[15px] font-600 text-[#0F172A] truncate">{from.isMe ? `${from.name} (You)` : from.name}</span></>
                 ) : (
                   <span className="text-[15px] font-500 text-[#C9D4DF]">Select member…</span>
                 )}
@@ -98,7 +98,7 @@ export default function RecordPaymentSheet({
               <span className="text-[11px] font-700 text-[#94A3B8] uppercase tracking-wide w-10 shrink-0">To</span>
               <div className="flex items-center gap-2.5 flex-1 min-w-0">
                 {to ? (
-                  <><Avatar member={to} size="sm" /><span className="text-[15px] font-600 text-[#0F172A] truncate">{to.isMe ? "Rafi (You)" : to.name}</span></>
+                  <><Avatar member={to} size="sm" /><span className="text-[15px] font-600 text-[#0F172A] truncate">{to.isMe ? `${to.name} (You)` : to.name}</span></>
                 ) : (
                   <span className="text-[15px] font-500 text-[#C9D4DF]">Select member…</span>
                 )}

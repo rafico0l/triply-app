@@ -53,7 +53,7 @@ export function MemberRow({
     >
       <Avatar member={member} size="md" />
       <div className="flex-1 min-w-0">
-        <p className="text-[14px] font-600 text-[#0F172A] leading-snug truncate">{member.isMe ? "Rafi" : member.name}</p>
+        <p className="text-[14px] font-600 text-[#0F172A] leading-snug truncate">{member.name}</p>
         <p className="text-[12px] text-[#94A3B8] font-500 mt-0.5 leading-none">{roleLabel}</p>
         <p className="num text-[11px] text-[#94A3B8] font-500 mt-1 leading-none">
           Paid {fmt(paidAmt)} · Share {fmt(shareAmt)}

@@ -56,7 +56,7 @@ export default function SettlementView({
             {sorted.map((m) => (
               <div key={m.id} className="flex items-center gap-3 px-4 py-3">
                 <Avatar member={m} size="sm" />
-                <p className="text-[14px] font-600 text-[#0F172A] flex-1 truncate">{m.isMe ? "Rafi" : m.name}</p>
+                <p className="text-[14px] font-600 text-[#0F172A] flex-1 truncate">{m.name}</p>
                 <span className="text-[13px] font-600 text-[#94A3B8]">Settled</span>
               </div>
             ))}
@@ -152,7 +152,7 @@ export default function SettlementView({
             return (
               <div key={m.id} className="flex items-center gap-3 px-4 py-3">
                 <Avatar member={m} size="sm" />
-                <p className="text-[14px] font-600 text-[#0F172A] flex-1 truncate">{m.isMe ? "Rafi" : m.name}</p>
+                <p className="text-[14px] font-600 text-[#0F172A] flex-1 truncate">{m.name}</p>
                 <div className="text-right shrink-0">
                   {isEven ? (
                     <span className="text-[13px] font-600 text-[#94A3B8]">Settled</span>

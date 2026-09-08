@@ -91,7 +91,7 @@ export default function MemberDetails({
             <div className="flex items-center gap-4">
               <Avatar member={member} size="xl" />
               <div className="flex-1 min-w-0">
-                <p className="text-[20px] font-800 text-[#0F172A] leading-tight">{isMe ? "Rafi" : member.name}</p>
+                <p className="text-[20px] font-800 text-[#0F172A] leading-tight">{member.name}</p>
                 <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                   {isOwner && <Badge label="Owner" variant="brand" />}
                   {isMe    && <Badge label="You" variant="neutral" />}

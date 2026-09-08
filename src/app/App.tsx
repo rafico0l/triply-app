@@ -765,7 +765,7 @@ function AuthenticatedApp({
         <AddExpense
           tourName={TOUR.name}
           members={currentMembers.map((m) => ({
-            id: m.id, name: m.isMe ? "Rafi" : m.name, initials: m.initials, color: m.color, isMe: m.isMe,
+            id: m.id, name: m.name, initials: m.initials, color: m.color, isMe: m.isMe,
           }))}
           tourStartDate={TOUR.startDate}
           tourEndDate={TOUR.endDate}
