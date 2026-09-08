@@ -19,6 +19,8 @@ interface FormErrors {
   amount?:      string;
   description?: string;
   category?:    string;
+  paidBy?:      string;
+  splitIds?:    string;
 }
 
 export interface InitialExpenseData {
@@ -193,6 +195,8 @@ export default function AddExpense({
     if (!f.amount || isNaN(num) || num <= 0) e.amount = "Enter an amount greater than 0.";
     if (!f.description.trim())               e.description = "Describe what this expense was for.";
     if (!f.category)                         e.category = "Select a category.";
+    if (!f.paidBy)                           e.paidBy = "Select who paid.";
+    if (f.splitIds.length === 0)             e.splitIds = "Select at least one person to split with.";
     return e;
   };
 
@@ -210,7 +214,7 @@ export default function AddExpense({
   };
 
   const handleSave = () => {
-    const allTouched = new Set<keyof FormState>(["amount", "description", "category"]);
+    const allTouched = new Set<keyof FormState>(["amount", "description", "category", "paidBy", "splitIds"]);
     setTouched(allTouched);
     const errs = validate(form);
     setErrors(errs);
@@ -332,11 +336,13 @@ export default function AddExpense({
               })()}
               onClick={() => setShowPaidBySheet(true)}
             />
+            {touched.has("paidBy") && errors.paidBy && <InlineError msg={errors.paidBy} />}
             <SelectionRow
               label="Split between"
               value={`${form.splitIds.length} ${form.splitIds.length === 1 ? "person" : "people"}`}
               onClick={() => setShowSplitBetweenSheet(true)}
             />
+            {touched.has("splitIds") && errors.splitIds && <InlineError msg={errors.splitIds} />}
             <SelectionRow
               label="Date"
               value={formattedDate}

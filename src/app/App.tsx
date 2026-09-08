@@ -550,7 +550,7 @@ function AuthenticatedApp({
         splitIds:  data.splitIds,
         date:      dateDisplay,
         dateIso:   isoDate,
-        addedBy:   me?.id ?? "6",
+        addedBy:   me?.id ?? data.paidBy,
         addedAt:   new Date().toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }),
       };
       updateCurrentTrip((t) => ({ ...t, expenses: [newExp, ...t.expenses] }));
