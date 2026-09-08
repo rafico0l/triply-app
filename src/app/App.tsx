@@ -19,7 +19,7 @@ import { computeAllMemberFinancials, toMajorUnits } from "../domain/finance";
 import type { Trip } from "../domain/trip";
 import { signOut, getCurrentUser, ensureCurrentUserProfile, getCurrentUserProfileName } from "../lib/auth";
 import { getSupabase } from "../lib/supabase";
-import { loadTrips, TripRepositoryError, createTrip, updateTrip, deleteTrip, addGuest, renameMember, removeMember, createExpense, updateExpense, deleteExpense } from "../lib/tripRepository";
+import { loadTrips, TripRepositoryError, createTrip, updateTrip, deleteTrip, addGuest, renameMember, removeMember, createExpense, updateExpense, deleteExpense, createSettlement } from "../lib/tripRepository";
 import type { User } from "@supabase/supabase-js";
 
 const DEMO_INVITE_MODE = false;
@@ -618,16 +618,25 @@ function AuthenticatedApp({
       return;
     }
 
-    const isoDate     = new Date().toISOString().slice(0, 10);
-    const dateDisplay = new Date(isoDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    const newS: RecordedSettlement = {
-      id: `rs${Date.now()}`, from, to, amount,
-      date: dateDisplay, dateIso: isoDate,
+    createSettlement({
+      tripId: currentTripId,
+      fromMemberId: from,
+      toMemberId: to,
+      amount,
       recordedBy: me.id,
-      syncStatus: "pending",
-    };
-    updateCurrentTrip((t) => ({ ...t, settlements: [newS, ...t.settlements] }));
-    setSettlementError(null);
+    })
+      .then((created) => {
+        updateCurrentTrip((t) => ({ ...t, settlements: [created, ...t.settlements] }));
+        setSettlementError(null);
+      })
+      .catch((err) => {
+        console.error("[app] record settlement failed:", err);
+        setSettlementError(
+          err instanceof TripRepositoryError
+            ? err.message
+            : "Failed to record settlement. Please try again."
+        );
+      });
   }
 
   function clearSettlementError() {

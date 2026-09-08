@@ -1017,6 +1017,84 @@ export async function deleteExpense(tripId: string, expenseId: string): Promise<
   }
 }
 
+// ── Settlement mutations ──────────────────────────────────────────────────────
+
+export interface CreateSettlementInput {
+  tripId: string;
+  fromMemberId: string;
+  toMemberId: string;
+  amount: number;
+  recordedBy: string;
+}
+
+/**
+ * Record a new settlement.
+ *
+ * Returns the persisted RecordedSettlement on success.
+ * Throws TripRepositoryError on failure.
+ */
+export async function createSettlement(input: CreateSettlementInput): Promise<RecordedSettlement> {
+  const sb = getSupabase();
+
+  if (!input.tripId) {
+    throw new TripRepositoryError("Missing trip ID", "UNAUTHENTICATED");
+  }
+
+  if (!input.fromMemberId || !input.toMemberId) {
+    throw new TripRepositoryError("Missing from/to member", "PARSE_FAILED");
+  }
+
+  if (input.fromMemberId === input.toMemberId) {
+    throw new TripRepositoryError("From and To must be different members", "PARSE_FAILED");
+  }
+
+  if (!input.recordedBy) {
+    throw new TripRepositoryError("Missing recorded-by member", "UNAUTHENTICATED");
+  }
+
+  const amountNum = parseFloat(String(input.amount));
+  if (isNaN(amountNum) || amountNum <= 0) {
+    throw new TripRepositoryError("Settlement amount must be greater than 0", "PARSE_FAILED");
+  }
+
+  const settlementInsert = {
+    trip_id: input.tripId,
+    from_member_id: input.fromMemberId,
+    to_member_id: input.toMemberId,
+    recorded_by: input.recordedBy,
+    amount_minor: toMinorUnits(amountNum),
+  };
+
+  const { data: settlement, error: settlementError } = await sb
+    .from("settlements")
+    .insert(settlementInsert)
+    .select("*")
+    .single();
+
+  if (settlementError) {
+    console.error("[tripRepository] settlement insert failed:", {
+      message: settlementError.message,
+      code: settlementError.code,
+      details: settlementError.details,
+      hint: settlementError.hint,
+    });
+    throw new TripRepositoryError(
+      "Failed to record settlement",
+      "FETCH_FAILED",
+      settlementError
+    );
+  }
+
+  if (!settlement) {
+    throw new TripRepositoryError(
+      "Settlement not created",
+      "FETCH_FAILED"
+    );
+  }
+
+  return mapDbSettlement(settlement);
+}
+
 // ── Mapping helpers ──────────────────────────────────────────────────────────
 
 function mapDbExpense(db: DbExpense): Expense {
@@ -1032,5 +1110,17 @@ function mapDbExpense(db: DbExpense): Expense {
     note: db.note ?? undefined,
     addedBy: db.added_by,
     addedAt: db.created_at,
+  };
+}
+
+function mapDbSettlement(db: DbSettlement): RecordedSettlement {
+  return {
+    id: db.id,
+    from: db.from_member_id,
+    to: db.to_member_id,
+    amount: toMajorUnits(db.amount_minor),
+    date: db.created_at.split("T")[0] ?? db.created_at,
+    dateIso: db.created_at.split("T")[0] ?? db.created_at,
+    recordedBy: db.recorded_by,
   };
 }
