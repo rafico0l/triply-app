@@ -202,6 +202,10 @@ CREATE POLICY "Profiles: owner update"
   USING (id = auth.uid())
   WITH CHECK (id = auth.uid());
 
+CREATE POLICY "Profiles: owner insert"
+  ON public.profiles FOR INSERT
+  WITH CHECK (id = auth.uid());
+
 -- ── trips ───────────────────────────────────────────────────
 
 CREATE POLICY "Trips: owner all"

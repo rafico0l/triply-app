@@ -57,7 +57,6 @@ export async function signUp(
 
   const user = data.user;
 
-  // Ensure profiles row exists (id = auth user id)
   if (user) {
     const { error: profileError } = await sb
       .from("profiles")
@@ -67,14 +66,19 @@ export async function signUp(
       );
 
     if (profileError) {
-      // Profile creation failed — but auth user exists.
-      // Return a non-blocking warning; user can still sign in.
-      console.error("[auth] profile upsert failed:", profileError.message);
+      console.error("[auth] profile upsert failed:", {
+        message: profileError.message,
+        code: profileError.code,
+        details: profileError.details,
+        hint: profileError.hint,
+      });
+      return {
+        error: "Account created, but profile setup failed. Please try signing in.",
+        user: data.user,
+      };
     }
   }
 
-  // data.session may be null if email confirmation is required.
-  // The caller should handle this (e.g. show "check your email" screen).
   return { error: null, user: data.user };
 }
 
@@ -122,6 +126,46 @@ export async function getCurrentUser(): Promise<User | null> {
   const sb = getSupabase();
   const { data } = await sb.auth.getUser();
   return data.user;
+}
+
+/**
+ * Ensure the current authenticated user has a profiles row.
+ *
+ * - If the profile exists, do nothing.
+ * - If missing, create it using auth user metadata/email.
+ * - Idempotent and safe to call repeatedly.
+ * - Never creates a profile for another user.
+ *
+ * Throws on unrecoverable Supabase errors.
+ */
+export async function ensureCurrentUserProfile(): Promise<void> {
+  const sb = getSupabase();
+  const { data } = await sb.auth.getUser();
+  const user = data.user;
+
+  if (!user) {
+    throw new Error("No authenticated user");
+  }
+
+  const name = (user.user_metadata?.name as string | undefined) ?? "";
+  const email = user.email ?? mobileToEmail(name);
+
+  const { error } = await sb
+    .from("profiles")
+    .upsert(
+      { id: user.id, name: name || "User", email },
+      { onConflict: "id" }
+    );
+
+  if (error) {
+    console.error("[auth] ensure profile failed:", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
+    throw new Error("Failed to ensure user profile");
+  }
 }
 
 // ── Error Mapping ────────────────────────────────────────────────────────────

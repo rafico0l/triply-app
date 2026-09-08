@@ -17,8 +17,9 @@ import TripsView from "../features/trips/TripsView";
 import TripDetailsView from "../features/trips/TripDetailsView";
 import { computeAllMemberFinancials, toMajorUnits } from "../domain/finance";
 import type { Trip } from "../domain/trip";
-import { INITIAL_TRIPS } from "../domain/tripSeed";
-import { signOut, getCurrentUser } from "../lib/auth";
+import { signOut, getCurrentUser, ensureCurrentUserProfile } from "../lib/auth";
+import { getSupabase } from "../lib/supabase";
+import { loadTrips, TripRepositoryError, createTrip } from "../lib/tripRepository";
 import type { User } from "@supabase/supabase-js";
 
 const DEMO_INVITE_MODE = false;
@@ -270,17 +271,30 @@ export default function App() {
   const [currentUser,     setCurrentUser]     = useState<User | null>(null);
   const [screen, setScreen]                   = useState<Screen>(DEMO_INVITE_MODE ? "inviteAccept" : "tour");
   const [activeTourId, setActiveTourId]       = useState<string | null>(null);
-  const [trips, setTrips]                     = useState<Trip[]>(INITIAL_TRIPS);
-  const [currentTripId, setCurrentTripId]     = useState<string>("trip-1");
+  const [trips, setTrips]                     = useState<Trip[]>([]);
+  const [currentTripId, setCurrentTripId]     = useState<string>("");
+  const [tripsLoading, setTripsLoading]       = useState(false);
+  const [tripLoadError, setTripLoadError]     = useState<string | null>(null);
+  const [creating, setCreating]               = useState(false);
+  const [createError, setCreateError]         = useState<string | null>(null);
 
   // ── Session restoration on mount ────────────────────────────────────────────
   useEffect(() => {
     let mounted = true;
-    getCurrentUser().then((user) => {
+    getCurrentUser().then(async (user) => {
       if (!mounted) return;
       setCurrentUser(user);
       setIsAuthenticated(!!user);
       setAuthLoading(false);
+
+      if (user) {
+        try {
+          await ensureCurrentUserProfile();
+        } catch (profileErr) {
+          console.error("[app] profile repair failed:", profileErr);
+        }
+        await loadTripsForUser(user.id, mounted);
+      }
     });
     return () => { mounted = false; };
   }, []);
@@ -293,49 +307,71 @@ export default function App() {
     setScreen("tour");
   };
 
-  function handleCreateTour(data: CreateTourData, coverImageUrl: string | null) {
-    const startDate = data.startDate;
-    const endDate   = data.endDate;
-    const startStr  = startDate ? new Date(startDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
-    const endStr    = endDate   ? new Date(endDate   + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
-    const datesDisplay = !startDate ? "" : !endDate || endDate === startDate ? endStr || startStr : `${startStr}\u2013${endStr}`;
+  async function loadTripsForUser(userId: string, mounted: boolean) {
+    setTripsLoading(true);
+    setTripLoadError(null);
+    try {
+      const loadedTrips = await loadTrips(userId);
+      if (!mounted) return;
+      setTrips(loadedTrips);
+      if (loadedTrips.length > 0) {
+        const firstId = loadedTrips[0].id;
+        setCurrentTripId(firstId);
+        setActiveTourId(firstId);
+      } else {
+        setCurrentTripId("");
+        setActiveTourId(null);
+      }
+    } catch (err) {
+      if (!mounted) return;
+      console.error("[app] failed to load trips:", err);
+      setTripLoadError(
+        err instanceof TripRepositoryError
+          ? err.message
+          : "Failed to load tours. Please check your connection."
+      );
+    } finally {
+      if (mounted) setTripsLoading(false);
+    }
+  }
 
+  const retryLoadTrips = async () => {
+    const user = currentUser;
+    if (!user) return;
+    await loadTripsForUser(user.id, true);
+  };
+
+  async function handleCreateTour(data: CreateTourData, coverImageUrl: string | null) {
     const budgetNum = data.budget ? Number(data.budget) : undefined;
+    const ownerName = currentUser?.user_metadata?.name ?? currentUser?.email ?? "You";
 
-    const newTripId = typeof crypto !== "undefined" && crypto.randomUUID
-      ? `trip-${crypto.randomUUID()}`
-      : `trip-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    setCreating(true);
+    setCreateError(null);
 
-    const creator: Member = {
-      id:        `m-${newTripId}-owner`,
-      name:      "You",
-      initials:  "RI",
-      color:     "#0A86A0",
-      paid:      0,
-      balance:   0,
-      isMe:      true,
-      role:      "owner",
-    };
+    try {
+      const newTrip = await createTrip(currentUser!.id, {
+        name: data.name.trim(),
+        destination: data.destination.trim(),
+        startDate: data.startDate || undefined,
+        endDate: data.endDate || undefined,
+        budget: budgetNum && budgetNum > 0 ? budgetNum : undefined,
+        coverImageUrl,
+      }, ownerName);
 
-    const newTrip: Trip = {
-      id:           newTripId,
-      name:         data.name.trim(),
-      destination:  data.destination.trim(),
-      dates:        datesDisplay,
-      startDate:    startDate || undefined,
-      endDate:      endDate || undefined,
-      status:       "active",
-      budget:       budgetNum && budgetNum > 0 ? budgetNum : undefined,
-      coverImage:   coverImageUrl ?? undefined,
-      members:      [creator],
-      expenses:     [],
-      settlements:  [],
-    };
-
-    setTrips((prev) => [...prev, newTrip]);
-    setCurrentTripId(newTripId);
-    setActiveTourId(newTripId);
-    setScreen("tour");
+      setTrips((prev) => [...prev, newTrip]);
+      setCurrentTripId(newTrip.id);
+      setActiveTourId(newTrip.id);
+      setScreen("tour");
+    } catch (err) {
+      console.error("[app] create trip failed:", err);
+      setCreateError(
+        err instanceof TripRepositoryError
+          ? err.message
+          : "Failed to create tour. Please try again."
+      );
+    } finally {
+      setCreating(false);
+    }
   }
 
   if (screen === "inviteAccept") {
@@ -360,7 +396,33 @@ export default function App() {
   }
   if (!isAuthenticated) return <AuthFlow onAuthenticate={() => setIsAuthenticated(true)} />;
   if (screen === "createTour") {
-    return <CreateTour onBack={() => setScreen("tourList")} onCreate={handleCreateTour} />;
+    return (
+      <>
+        <CreateTour onBack={() => { setCreateError(null); setScreen("tourList"); }} onCreate={handleCreateTour} />
+        {creating && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+            <div className="bg-white rounded-[16px] px-6 py-4 shadow-lg flex items-center gap-3">
+              <div className="w-5 h-5 border-2 border-[#0A86A0] border-t-transparent rounded-full animate-spin" />
+              <p className="text-[14px] font-600 text-[#0F172A]">Creating tour…</p>
+            </div>
+          </div>
+        )}
+        {createError && !creating && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-[16px] p-5 shadow-lg max-w-[320px] w-full text-center">
+              <p className="text-[14px] font-700 text-[#0F172A] mb-2">Could not create tour</p>
+              <p className="text-[13px] text-[#94A3B8] font-500 mb-4">{createError}</p>
+              <button
+                onClick={() => setCreateError(null)}
+                className="pressable w-full h-10 rounded-[12px] bg-[#0A86A0] text-white font-700 text-[14px]"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+      </>
+    );
   }
   if (screen === "inviteMembers") {
     return <InviteMembers tourName={TOUR.name} tourDates={TOUR.dates} onBack={() => setScreen("createTour")} onDone={() => setScreen("tour")} />;
@@ -368,6 +430,44 @@ export default function App() {
   if (screen === "tourList") {
     return <TourList onSelectTour={(id: string) => { setActiveTourId(id); setScreen("tour"); }} onNewTour={() => setScreen("createTour")} />;
   }
+
+  if (tripsLoading) {
+    return (
+      <div className="h-[100dvh] flex items-center justify-center bg-[#F4F6F9]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-[#0A86A0] border-t-transparent rounded-full animate-spin" />
+          <p className="text-[13px] font-500 text-[#94A3B8]">Loading your tours…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (tripLoadError) {
+    return (
+      <div className="h-[100dvh] flex items-center justify-center bg-[#F4F6F9]">
+        <div className="flex flex-col items-center gap-4 px-8 text-center">
+          <div className="w-12 h-12 rounded-full bg-[#FEE2E2] flex items-center justify-center text-[#DC2626]">
+            <IconAlertCircle size={24} />
+          </div>
+          <p className="text-[15px] font-700 text-[#0F172A]">Could not load tours</p>
+          <p className="text-[13px] text-[#94A3B8] font-500 max-w-[260px]">{tripLoadError}</p>
+          <button
+            onClick={retryLoadTrips}
+            className="pressable flex items-center gap-2 px-5 h-11 rounded-[12px] bg-[#0A86A0] text-white font-700 text-[14px] shadow-[0_2px_10px_rgba(10,134,160,0.22)]"
+          >
+            Retry
+          </button>
+          <button
+            onClick={handleSignOut}
+            className="pressable text-[13px] font-600 text-[#94A3B8] underline underline-offset-2"
+          >
+            Sign out
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return <AuthenticatedApp
     trips={trips}
     setTrips={setTrips}
