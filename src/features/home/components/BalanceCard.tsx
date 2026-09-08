@@ -1,9 +1,13 @@
 import type { Expense, Member } from "../../../domain/types";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { MapIcon, Add01Icon, AiSwapIcon } from "@hugeicons/core-free-icons";
+import { MapIcon, Add01Icon, AiSwapIcon, PlusIcon } from "@hugeicons/core-free-icons";
 import { fmt } from "../../../lib/format";
-import { TOUR } from "../../../lib/tour";
 import { computeTotalSpent, computeBudgetStats, toMajorUnits, toMinorUnits } from "../../../domain/finance";
+import EmptyState from "../../../components/shared/EmptyState";
+
+function tripsHaveNoData(expenses: Expense[], members: Member[]): boolean {
+  return expenses.length === 0 && members.length === 0;
+}
 
 export default function BalanceCard({
   expenses,
@@ -11,14 +15,20 @@ export default function BalanceCard({
   empty = false,
   onAddExpense,
   onSettle,
+  onNewTour,
   budget,
+  tripName,
+  tripDates,
 }: {
   expenses: Expense[];
   members: Member[];
   empty?: boolean;
   onAddExpense?: () => void;
   onSettle?: () => void;
+  onNewTour?: () => void;
   budget?: number;
+  tripName?: string;
+  tripDates?: string;
 }) {
   const totalMinor = computeTotalSpent(expenses);
   const total = toMajorUnits(totalMinor);
@@ -32,6 +42,75 @@ export default function BalanceCard({
   const balanceZero = myBalance === 0;
   const balancePositive = myBalance > 0;
 
+  const noTrip = empty && tripsHaveNoData(expenses, members);
+  const tripNoExpenses = !noTrip && expenses.length === 0;
+
+  if (noTrip) {
+    return (
+      <section className="px-4 pt-3 pb-1">
+        <div className="bg-white rounded-[20px] border border-[#E1E7EF] overflow-hidden">
+          <EmptyState
+            icon={<HugeiconsIcon icon={MapIcon} size={28} color="currentColor" strokeWidth={1.5} />}
+            title="Your next adventure starts here"
+            body="Create a trip, invite your friends, and keep everyone's expenses in one place."
+            action={
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={onNewTour}
+                  className="pressable flex items-center justify-center gap-1.5 px-5 h-11 rounded-[12px] bg-[#0A86A0] text-white font-700 text-[14px] shadow-[0_2px_8px_rgba(10,134,160,0.18)]"
+                >
+                  <HugeiconsIcon icon={PlusIcon} size={16} color="currentColor" strokeWidth={2.5} />
+                  Create your first trip
+                </button>
+              </div>
+            }
+          />
+        </div>
+      </section>
+    );
+  }
+
+  if (tripNoExpenses) {
+    return (
+      <section className="px-4 pt-3 pb-1">
+        <div className="bg-white rounded-[20px] border border-[#E1E7EF] overflow-hidden">
+          <div className="px-5 pt-4 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-[12px] bg-[#EFF9FB] flex items-center justify-center text-[#0A86A0] shrink-0">
+                <HugeiconsIcon icon={MapIcon} size={20} color="currentColor" strokeWidth={1.5} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[15px] font-700 text-[#0F172A] truncate leading-snug">{tripName ?? "Trip"}</p>
+                <p className="text-[12px] text-[#94A3B8] font-500 mt-0.5">
+                  {tripDates ?? ""} · {members.length} {members.length === 1 ? "traveler" : "travelers"}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="px-5 pb-5 pt-2">
+            <EmptyState
+              icon={<HugeiconsIcon icon={Add01Icon} size={28} color="currentColor" strokeWidth={1.5} />}
+              title="No expenses yet"
+              body="Start tracking by adding your first expense."
+              action={
+                <button
+                  onClick={onAddExpense}
+                  className="pressable flex items-center justify-center gap-1.5 px-5 h-11 rounded-[12px] bg-[#0A86A0] text-white font-700 text-[14px] shadow-[0_2px_8px_rgba(10,134,160,0.18)]"
+                >
+                  <HugeiconsIcon icon={PlusIcon} size={16} color="currentColor" strokeWidth={2.5} />
+                  Add expense
+                </button>
+              }
+            />
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const displayName = tripName ?? "Trip";
+  const displayDates = tripDates ?? "";
+
   return (
     <section className="px-4 pt-3 pb-1">
       <div className="bg-white rounded-[20px] border border-[#E1E7EF] overflow-hidden">
@@ -42,9 +121,9 @@ export default function BalanceCard({
               <HugeiconsIcon icon={MapIcon} size={20} color="currentColor" strokeWidth={1.5} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[15px] font-700 text-[#0F172A] truncate leading-snug">{TOUR.name}</p>
+              <p className="text-[15px] font-700 text-[#0F172A] truncate leading-snug">{displayName}</p>
               <p className="text-[12px] text-[#94A3B8] font-500 mt-0.5">
-                {TOUR.dates} · {members.length} travelers
+                {displayDates} · {members.length} travelers
               </p>
             </div>
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-600 bg-[#EFF9FB] text-[#0A86A0] border border-[#A3DFE9] shrink-0">

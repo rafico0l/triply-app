@@ -1,8 +1,9 @@
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowLeft01Icon, PlusIcon } from "@hugeicons/core-free-icons";
+import { ArrowLeft01Icon, PlusIcon, MapIcon } from "@hugeicons/core-free-icons";
 import TripCard, { type Tour } from "./components/TripCard";
 import { computeTotalSpent, toMajorUnits } from "../../domain/finance";
 import type { Trip } from "../../domain/trip";
+import EmptyState from "../../components/shared/EmptyState";
 
 // ─── Section Label ────────────────────────────────────────────────────────────
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -63,55 +64,74 @@ export default function TripsView({
       </div>
 
       {/* ── Content Sections ────────────────────────────────────────────── */}
-      <div className="px-4 pt-4 space-y-6 max-w-[600px] mx-auto w-full">
-        {/* ACTIVE TRIP */}
-        {activeTours.length > 0 && (
-          <section>
-            <SectionLabel>ACTIVE TRIP</SectionLabel>
-            <div className="space-y-2.5">
-              {activeTours.map((tour) => (
-                <TripCard
-                  key={tour.id}
-                  tour={toDisplayTour(tour)}
-                  onSelect={onSelectTour}
-                />
-              ))}
-            </div>
-          </section>
-        )}
+      {trips.length === 0 ? (
+        <div className="px-4 pt-6">
+          <EmptyState
+            icon={<HugeiconsIcon icon={MapIcon} size={32} color="currentColor" strokeWidth={1.5} />}
+            title="No trips yet"
+            body="Create your first trip to start tracking expenses with your group."
+            action={
+              <button
+                onClick={onNewTour}
+                className="pressable inline-flex items-center gap-2 px-5 h-11 rounded-[12px] bg-[#0A86A0] text-white font-700 text-[14px] shadow-[0_2px_8px_rgba(10,134,160,0.18)]"
+              >
+                <HugeiconsIcon icon={PlusIcon} size={16} color="currentColor" strokeWidth={2.5} />
+                Create your first trip
+              </button>
+            }
+          />
+        </div>
+      ) : (
+        <div className="px-4 pt-4 space-y-6 max-w-[600px] mx-auto w-full">
+          {/* ACTIVE TRIP */}
+          {activeTours.length > 0 && (
+            <section>
+              <SectionLabel>ACTIVE TRIP</SectionLabel>
+              <div className="space-y-2.5">
+                {activeTours.map((tour) => (
+                  <TripCard
+                    key={tour.id}
+                    tour={toDisplayTour(tour)}
+                    onSelect={onSelectTour}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
-        {/* UPCOMING */}
-        {upcomingTours.length > 0 && (
-          <section>
-            <SectionLabel>UPCOMING</SectionLabel>
-            <div className="space-y-2.5">
-              {upcomingTours.map((tour) => (
-                <TripCard
-                  key={tour.id}
-                  tour={toDisplayTour(tour)}
-                  onSelect={onSelectTour}
-                />
-              ))}
-            </div>
-          </section>
-        )}
+          {/* UPCOMING */}
+          {upcomingTours.length > 0 && (
+            <section>
+              <SectionLabel>UPCOMING</SectionLabel>
+              <div className="space-y-2.5">
+                {upcomingTours.map((tour) => (
+                  <TripCard
+                    key={tour.id}
+                    tour={toDisplayTour(tour)}
+                    onSelect={onSelectTour}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
-        {/* COMPLETED */}
-        {completedTours.length > 0 && (
-          <section>
-            <SectionLabel>COMPLETED</SectionLabel>
-            <div className="space-y-2.5">
-              {completedTours.map((tour) => (
-                <TripCard
-                  key={tour.id}
-                  tour={toDisplayTour(tour)}
-                  onSelect={onSelectTour}
-                />
-              ))}
-            </div>
-          </section>
-        )}
-      </div>
+          {/* COMPLETED */}
+          {completedTours.length > 0 && (
+            <section>
+              <SectionLabel>COMPLETED</SectionLabel>
+              <div className="space-y-2.5">
+                {completedTours.map((tour) => (
+                  <TripCard
+                    key={tour.id}
+                    tour={toDisplayTour(tour)}
+                    onSelect={onSelectTour}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+      )}
 
       {/* ── Floating New Trip Action ────────────────────────────────────── */}
       <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+60px+16px)] left-0 right-0 z-20 flex justify-center pointer-events-none">

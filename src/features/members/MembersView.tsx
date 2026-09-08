@@ -6,11 +6,10 @@ import InviteSheet from "./components/InviteSheet";
 import AddGuestSheet from "./components/AddGuestSheet";
 import { fmt } from "../../lib/format";
 import { IconPlus } from "../../components/shared/icons";
-import { TOUR } from "../../lib/tour";
 
 export default function MembersView({
   members, expenses, actionsOpen, onActionsClose, onSetMembers, onTapMember,
-  onAddGuest, onRenameMember, onRemoveMember,
+  onAddGuest, onRenameMember, onRemoveMember, tourName,
 }: {
   members: Member[]; expenses: Expense[];
   actionsOpen: boolean; onActionsClose: () => void;
@@ -18,6 +17,7 @@ export default function MembersView({
   onAddGuest?: (name: string) => void;
   onRenameMember?: (memberId: string, name: string) => void;
   onRemoveMember?: (memberId: string) => void;
+  tourName?: string;
 }) {
   const [showInvite,   setShowInvite]   = useState(false);
   const [showAddGuest, setShowAddGuest] = useState(false);
@@ -66,11 +66,11 @@ export default function MembersView({
       {onlyOwner && (
         <div className="px-4 pt-4 pb-2">
           <div className="bg-[#EFF9FB] border border-[#A3DFE9] rounded-[14px] px-4 py-4">
-            <p className="text-[14px] font-700 text-[#0A7490] mb-1">It's just you so far</p>
-            <p className="text-[13px] font-500 text-[#0A86A0] leading-relaxed mb-3">Invite your travel group to start tracking expenses together.</p>
-            <button onClick={() => setShowInvite(true)} className="pressable flex items-center gap-1.5 px-4 h-9 rounded-full bg-[#0A86A0] text-white font-700 text-[13px]">
+            <p className="text-[14px] font-700 text-[#0A7490] mb-1">Travel is better together</p>
+            <p className="text-[13px] font-500 text-[#0A86A0] leading-relaxed mb-3">Add your tripmates so you can split expenses together.</p>
+            <button onClick={() => setShowAddGuest(true)} className="pressable flex items-center gap-1.5 px-4 h-9 rounded-full bg-[#0A86A0] text-white font-700 text-[13px]">
               <IconPlus size={14} />
-              Invite members
+              Add member
             </button>
           </div>
         </div>
@@ -98,7 +98,7 @@ export default function MembersView({
       {actionsOpen && (
         <MemberActionsMenu onClose={onActionsClose} onInvite={() => setShowInvite(true)} onAddGuest={() => setShowAddGuest(true)} />
       )}
-      {showInvite    && <InviteSheet onClose={() => setShowInvite(false)} tourName={TOUR.name} />}
+      {showInvite    && <InviteSheet onClose={() => setShowInvite(false)} tourName={tourName ?? "Trip"} />}
       {showAddGuest  && <AddGuestSheet onClose={() => setShowAddGuest(false)} onAdd={handleAddGuest} />}
     </div>
   );

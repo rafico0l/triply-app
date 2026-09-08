@@ -13,6 +13,9 @@ export default function HomeView({
   onSettle,
   currentUserName,
   budget,
+  tripName,
+  tripDates,
+  onNewTour,
 }: {
   expenses: Expense[];
   members: Member[];
@@ -22,6 +25,9 @@ export default function HomeView({
   onSettle?: () => void;
   currentUserName?: string;
   budget?: number;
+  tripName?: string;
+  tripDates?: string;
+  onNewTour?: () => void;
 }) {
   const me = members.find((m) => m.isMe);
   const userName = currentUserName ?? me?.name ?? "You";
@@ -35,15 +41,20 @@ export default function HomeView({
         empty={empty}
         onAddExpense={onAddExpense}
         onSettle={onSettle}
+        onNewTour={onNewTour}
         budget={budget}
+        tripName={tripName}
+        tripDates={tripDates}
       />
-      <RecentExpenses
-        expenses={expenses}
-        members={members}
-        onViewAll={() => onTabChange("expenses")}
-        empty={empty}
-        onAddExpense={onAddExpense}
-      />
+      {!empty && (
+        <RecentExpenses
+          expenses={expenses}
+          members={members}
+          onViewAll={() => onTabChange("expenses")}
+          empty={expenses.length === 0}
+          onAddExpense={onAddExpense}
+        />
+      )}
     </div>
   );
 }

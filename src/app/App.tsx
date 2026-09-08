@@ -799,9 +799,9 @@ function AuthenticatedApp({
 
   const PageContent = () => (
     <>
-      {tab === "home"       && <HomeView       expenses={currentExpenses} members={currentMembers} onTabChange={setTab} empty={isEmpty} onAddExpense={() => setShowAddExpense(true)} onSettle={() => setTab("settlement")} currentUserName={currentUserName ?? undefined} budget={currentTrip.budget} />}
+      {tab === "home"       && <HomeView       expenses={currentExpenses} members={currentMembers} onTabChange={setTab} empty={isEmpty} onAddExpense={() => setShowAddExpense(true)} onSettle={() => setTab("settlement")} currentUserName={currentUserName ?? undefined} budget={currentTrip.budget} tripName={currentTrip.name} tripDates={currentTrip.dates} onNewTour={onNewTour} />}
       {tab === "trips"      && <TripsView trips={trips} onNewTour={onNewTour} onBack={() => setTab("home")} onSelectTour={(id) => { setCurrentTripId(id); setTripDetailId(id); }} />}
-      {tab === "expenses"   && <ExpensesView   expenses={currentExpenses} members={currentMembers} onTapExpense={(id) => setSubScreen({ type: "expense-detail", id })} />}
+      {tab === "expenses"   && <ExpensesView   expenses={currentExpenses} members={currentMembers} onTapExpense={(id) => setSubScreen({ type: "expense-detail", id })} onAddExpense={() => setShowAddExpense(true)} onNewTour={onNewTour} tripName={currentTrip.name} />}
       {tab === "members"    && (
         <MembersView
           members={currentMembers} expenses={currentExpenses}
@@ -811,6 +811,7 @@ function AuthenticatedApp({
           onAddGuest={handleAddGuest}
           onRenameMember={handleRenameMember}
           onRemoveMember={handleRemoveMember}
+          tourName={currentTrip.name}
         />
       )}
       {tab === "settlement" && (
@@ -824,6 +825,7 @@ function AuthenticatedApp({
           onOpenHistory={() => setSubScreen({ type: "settlement-history" })}
           error={settlementError}
           onClearError={clearSettlementError}
+          onAddExpense={() => setShowAddExpense(true)}
         />
       )}
       {tab === "settings"   && (

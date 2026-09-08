@@ -9,7 +9,7 @@ import RecordPaymentSheet from "./components/RecordPaymentSheet";
 
 export default function SettlementView({
   members, expenses, recordedSettlements, me, isCurrentUserOwner,
-  onRecordSettlement, onOpenHistory, error, onClearError,
+  onRecordSettlement, onOpenHistory, error, onClearError, onAddExpense,
 }: {
   members: Member[];
   expenses: Expense[];
@@ -20,6 +20,7 @@ export default function SettlementView({
   onOpenHistory: () => void;
   error?: string | null;
   onClearError?: () => void;
+  onAddExpense?: () => void;
 }) {
   const [recordPayment, setRecordPayment] = useState<{ fromId: string; toId: string; amount: number } | null>(null);
   const [showManual,    setShowManual]    = useState(false);
@@ -34,6 +35,7 @@ export default function SettlementView({
   const suggestedPayments = computeSuggestedPayments(members, expenses, recordedSettlements);
   const totalToSettle     = suggestedPayments.reduce((s, p) => s + p.amount, 0);
   const isFullySettled    = suggestedPayments.length === 0;
+  const nothingToSettle   = expenses.length === 0 && recordedSettlements.length === 0;
 
   function handleRecord(from: string, to: string, amount: number) {
     onRecordSettlement(from, to, amount);
@@ -45,6 +47,38 @@ export default function SettlementView({
   }
 
   const sorted = [...members].sort((a, b) => b.balance - a.balance);
+
+  // ── Nothing to settle yet ─────────────────────────────────────────────────────
+  if (nothingToSettle) {
+    return (
+      <div>
+        {error && (
+          <div className="px-4 pt-4 pb-1">
+            <div className="bg-[#FEE2E2] border border-[#FECACA] rounded-[12px] px-4 py-3 flex items-center justify-between">
+              <p className="text-[13px] font-600 text-[#DC2626]">{error}</p>
+              {onClearError && <button onClick={onClearError} className="text-[#DC2626] font-700 text-[13px]">Dismiss</button>}
+            </div>
+          </div>
+        )}
+        <div className="flex flex-col items-center justify-center px-8 pt-12 pb-6 text-center">
+          <div className="w-16 h-16 rounded-full bg-[#F1F5F9] border-2 border-[#E1E7EF] flex items-center justify-center text-[#94A3B8] mb-5">
+            <IconCheckCircle2 size={30} />
+          </div>
+          <p className="text-[22px] font-800 text-[#0F172A] mb-2">Nothing to settle yet</p>
+          <p className="text-[15px] font-500 text-[#94A3B8] leading-relaxed max-w-[260px]">Balances will appear once you add shared expenses.</p>
+          {onAddExpense && (
+            <button
+              onClick={onAddExpense}
+              className="pressable mt-4 flex items-center gap-1.5 px-5 h-11 rounded-[12px] bg-[#0A86A0] text-white font-700 text-[14px] shadow-[0_2px_8px_rgba(10,134,160,0.18)]"
+            >
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+              Add expense
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   // ── Fully settled state ──────────────────────────────────────────────────────
   if (isFullySettled) {

@@ -10,9 +10,10 @@ import ExpenseRow from "./components/ExpenseRow";
 type ExpenseFilter = "all" | "i-paid" | "my-expenses";
 
 export default function ExpensesView({
-  expenses, members, onTapExpense,
+  expenses, members, onTapExpense, onAddExpense, onNewTour, tripName,
 }: {
   expenses: Expense[]; members: Member[]; onTapExpense: (id: string) => void;
+  onAddExpense?: () => void; onNewTour?: () => void; tripName?: string;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<ExpenseFilter>("all");
@@ -144,13 +145,41 @@ export default function ExpensesView({
       ) : (
         <EmptyState
           icon={<IconReceipt size={32} />}
-          title={searchQuery ? "No matches" : hasActiveFilters ? "No expenses here" : "No expenses yet"}
+          title={members.length === 0 && expenses.length === 0 ? "Your next adventure starts here" : "No expenses yet"}
           body={
-            searchQuery
+            members.length === 0 && expenses.length === 0
+              ? "Create a trip to start tracking expenses."
+              : searchQuery
               ? `No expenses match "${searchQuery}". Try a different search.`
               : hasActiveFilters
               ? "No expenses match the selected filter."
               : "Tap '+ Add Expense' to record your first shared expense."
+          }
+          action={
+            members.length === 0 && expenses.length === 0 && onNewTour ? (
+              <button
+                onClick={onNewTour}
+                className="pressable flex items-center gap-1.5 px-5 h-11 rounded-[12px] bg-[#0A86A0] text-white font-700 text-[14px] shadow-[0_2px_8px_rgba(10,134,160,0.18)]"
+              >
+                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                Create your first trip
+              </button>
+            ) : onAddExpense && !searchQuery && !hasActiveFilters ? (
+              <button
+                onClick={onAddExpense}
+                className="pressable flex items-center gap-1.5 px-5 h-11 rounded-[12px] bg-[#0A86A0] text-white font-700 text-[14px] shadow-[0_2px_8px_rgba(10,134,160,0.18)]"
+              >
+                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                Add expense
+              </button>
+            ) : hasActiveFilters ? (
+              <button
+                onClick={() => { setSearchQuery(""); setFilter("all"); setCategoryFilter(null); }}
+                className="pressable flex items-center gap-1.5 px-5 h-11 rounded-[12px] bg-[#F4F6F9] text-[#475569] font-700 text-[14px]"
+              >
+                Clear filters
+              </button>
+            ) : undefined
           }
         />
       )}
