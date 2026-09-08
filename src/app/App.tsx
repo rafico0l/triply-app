@@ -19,7 +19,7 @@ import { computeAllMemberFinancials, toMajorUnits } from "../domain/finance";
 import type { Trip } from "../domain/trip";
 import { signOut, getCurrentUser, ensureCurrentUserProfile, getCurrentUserProfileName } from "../lib/auth";
 import { getSupabase } from "../lib/supabase";
-import { loadTrips, TripRepositoryError, createTrip, updateTrip, deleteTrip } from "../lib/tripRepository";
+import { loadTrips, TripRepositoryError, createTrip, updateTrip, deleteTrip, addGuest, renameMember, removeMember, createExpense, updateExpense, deleteExpense } from "../lib/tripRepository";
 import type { User } from "@supabase/supabase-js";
 
 const DEMO_INVITE_MODE = false;
@@ -533,37 +533,83 @@ function AuthenticatedApp({
     const amount = parseFloat(data.amount);
     if (isNaN(amount)) return;
 
-    if (data.expenseId) {
-      const updated = currentExpenses.map((e) =>
-        e.id === data.expenseId
-          ? { ...e, title: data.description, amount, category: (data.category ?? e.category) as Expense["category"], paidBy: data.paidBy, splitIds: data.splitIds, dateIso: data.date || e.dateIso }
-          : e
-      );
-      updateCurrentTrip((t) => ({ ...t, expenses: updated }));
-    } else {
-      const isoDate = data.date || new Date().toISOString().slice(0, 10);
-      const dateDisplay = new Date(isoDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
-      const newExp: Expense = {
-        id:        `e${Date.now()}`,
-        title:     data.description,
-        amount,
-        category:  (data.category ?? "other") as Expense["category"],
-        paidBy:    data.paidBy,
-        splitIds:  data.splitIds,
-        date:      dateDisplay,
-        dateIso:   isoDate,
-        addedBy:   me?.id ?? data.paidBy,
-        addedAt:   new Date().toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }),
-      };
-      updateCurrentTrip((t) => ({ ...t, expenses: [newExp, ...t.expenses] }));
+    if (!me) {
+      setTripError("Cannot save expense: you are not a member of this trip.");
+      return;
     }
-    setShowAddExpense(false);
-    setEditingExpense(null);
+
+    const category = data.category ?? "other";
+    const isoDate = data.date || new Date().toISOString().slice(0, 10);
+    const addedBy = me.id;
+
+    if (data.expenseId) {
+      updateExpense({
+        tripId: currentTripId,
+        expenseId: data.expenseId,
+        title: data.description,
+        amount,
+        category,
+        dateIso: isoDate,
+        paidBy: data.paidBy,
+        splitIds: data.splitIds,
+      })
+        .then((updated) => {
+          updateCurrentTrip((t) => ({
+            ...t,
+            expenses: t.expenses.map((e) => (e.id === updated.id ? updated : e)),
+          }));
+          setShowAddExpense(false);
+          setEditingExpense(null);
+        })
+        .catch((err) => {
+          console.error("[app] update expense failed:", err);
+          setTripError(
+            err instanceof TripRepositoryError
+              ? err.message
+              : "Failed to update expense. Please try again."
+          );
+        });
+    } else {
+      createExpense({
+        tripId: currentTripId,
+        title: data.description,
+        amount,
+        category,
+        dateIso: isoDate,
+        paidBy: data.paidBy,
+        splitIds: data.splitIds,
+        addedBy,
+      })
+        .then((created) => {
+          updateCurrentTrip((t) => ({ ...t, expenses: [created, ...t.expenses] }));
+          setShowAddExpense(false);
+          setEditingExpense(null);
+        })
+        .catch((err) => {
+          console.error("[app] create expense failed:", err);
+          setTripError(
+            err instanceof TripRepositoryError
+              ? err.message
+              : "Failed to save expense. Please try again."
+          );
+        });
+    }
   }
 
   function handleDeleteExpense(id: string) {
-    updateCurrentTrip((t) => ({ ...t, expenses: t.expenses.filter((e) => e.id !== id) }));
-    setSubScreen(null);
+    deleteExpense(currentTripId, id)
+      .then(() => {
+        updateCurrentTrip((t) => ({ ...t, expenses: t.expenses.filter((e) => e.id !== id) }));
+        setSubScreen(null);
+      })
+      .catch((err) => {
+        console.error("[app] delete expense failed:", err);
+        setTripError(
+          err instanceof TripRepositoryError
+            ? err.message
+            : "Failed to delete expense. Please try again."
+        );
+      });
   }
 
   function handleRecordSettlement(from: string, to: string, amount: number) {
@@ -590,11 +636,6 @@ function AuthenticatedApp({
 
   function handleDeleteSettlement(id: string) {
     updateCurrentTrip((t) => ({ ...t, settlements: t.settlements.filter((s) => s.id !== id) }));
-  }
-
-  function handleRemoveMember(id: string) {
-    updateCurrentTrip((t) => ({ ...t, members: t.members.filter((m) => m.id !== id) }));
-    setSubScreen(null);
   }
 
   function computeDatesDisplay(start?: string, end?: string): string {
@@ -661,6 +702,75 @@ function AuthenticatedApp({
     setTripError(null);
   }
 
+  function handleAddGuest(name: string) {
+    if (!currentTripId) return;
+    addGuest({ tripId: currentTripId, name })
+      .then((member) => {
+        updateCurrentTrip((t) => ({ ...t, members: [...t.members, member] }));
+      })
+      .catch((err) => {
+        console.error("[app] add guest failed:", err);
+        setTripError(
+          err instanceof TripRepositoryError
+            ? err.message
+            : "Failed to add guest. Please try again."
+        );
+      });
+  }
+
+  function handleRenameMember(memberId: string, name: string) {
+    if (!currentTripId) return;
+    renameMember({ tripId: currentTripId, memberId, name })
+      .then((updated) => {
+        updateCurrentTrip((t) => ({
+          ...t,
+          members: t.members.map((m) => (m.id === updated.id ? updated : m)),
+        }));
+      })
+      .catch((err) => {
+        console.error("[app] rename member failed:", err);
+        setTripError(
+          err instanceof TripRepositoryError
+            ? err.message
+            : "Failed to rename member. Please try again."
+        );
+      });
+  }
+
+  function handleRemoveMember(memberId: string) {
+    if (!currentTripId) return;
+    const member = currentMembers.find((m) => m.id === memberId);
+    if (!member) return;
+
+    if (member.role === "owner") {
+      setTripError("Owners cannot be removed from the trip.");
+      return;
+    }
+
+    if (hasMemberFinancialHistory(memberId, currentExpenses, currentSettlements)) {
+      setTripError(
+        `${member.name.split(" ")[0]} has financial history in this trip. Remove blocked to protect records.`
+      );
+      return;
+    }
+
+    removeMember(currentTripId, memberId)
+      .then(() => {
+        updateCurrentTrip((t) => ({
+          ...t,
+          members: t.members.filter((m) => m.id !== memberId),
+        }));
+      })
+      .catch((err) => {
+        console.error("[app] remove member failed:", err);
+        setTripError(
+          err instanceof TripRepositoryError
+            ? err.message
+            : "Failed to remove member. Please try again."
+        );
+      });
+  }
+
   const headerConfig: Record<Tab, { title: string; subtitle?: string; showBack: boolean }> = {
     home:       { title: TOUR.name, subtitle: TOUR.dates, showBack: false },
     trips:      { title: "Trips",                        showBack: false },
@@ -686,6 +796,9 @@ function AuthenticatedApp({
           actionsOpen={membersActionsOpen} onActionsClose={() => setMembersActionsOpen(false)}
           onSetMembers={(next) => updateCurrentTrip((t) => ({ ...t, members: next }))}
           onTapMember={(id) => setSubScreen({ type: "member-detail", id })}
+          onAddGuest={handleAddGuest}
+          onRenameMember={handleRenameMember}
+          onRemoveMember={handleRemoveMember}
         />
       )}
       {tab === "settlement" && (
@@ -864,6 +977,7 @@ function AuthenticatedApp({
           onBack={() => setSubScreen(null)}
           onSetMembers={(next) => updateCurrentTrip((t) => ({ ...t, members: next }))}
           onRemove={() => handleRemoveMember(activeMember.id)}
+          onRenameMember={handleRenameMember}
         />
       )}
 
@@ -899,6 +1013,9 @@ function AuthenticatedApp({
               actionsOpen={membersActionsOpen} onActionsClose={() => setMembersActionsOpen(false)}
               onSetMembers={(next) => updateCurrentTrip((t) => ({ ...t, members: next }))}
               onTapMember={(id) => setSubScreen({ type: "member-detail", id })}
+              onAddGuest={handleAddGuest}
+              onRenameMember={handleRenameMember}
+              onRemoveMember={handleRemoveMember}
             />
           </div>
         </div>

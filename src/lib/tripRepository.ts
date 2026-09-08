@@ -588,3 +588,449 @@ export async function deleteTrip(tripId: string): Promise<void> {
     );
   }
 }
+
+// ── Member mutations ───────────────────────────────────────────────────────────
+
+export interface AddGuestInput {
+  tripId: string;
+  name: string;
+}
+
+/**
+ * Add a guest member to a trip.
+ *
+ * Creates a trip_members row with user_id = NULL and role = "member".
+ * Returns the created Member on success.
+ * Throws TripRepositoryError on failure.
+ */
+export async function addGuest(input: AddGuestInput): Promise<Member> {
+  const sb = getSupabase();
+
+  if (!input.tripId) {
+    throw new TripRepositoryError("Missing trip ID", "UNAUTHENTICATED");
+  }
+
+  const name = input.name.trim();
+  if (!name) {
+    throw new TripRepositoryError("Guest name is required", "PARSE_FAILED");
+  }
+
+  const initials = deriveInitials(name);
+
+  const memberInsert = {
+    trip_id: input.tripId,
+    user_id: null,
+    name,
+    initials,
+    color: "#64748B",
+    role: "member" as const,
+  };
+
+  const { data: member, error: memberError } = await sb
+    .from("trip_members")
+    .insert(memberInsert)
+    .select("*")
+    .single();
+
+  if (memberError) {
+    console.error("[tripRepository] add guest failed:", {
+      message: memberError.message,
+      code: memberError.code,
+      details: memberError.details,
+      hint: memberError.hint,
+    });
+    throw new TripRepositoryError(
+      "Failed to add guest",
+      "FETCH_FAILED",
+      memberError
+    );
+  }
+
+  if (!member) {
+    throw new TripRepositoryError(
+      "Guest not created",
+      "FETCH_FAILED"
+    );
+  }
+
+  return {
+    id: member.id,
+    name: member.name,
+    initials: member.initials ?? "",
+    color: member.color ?? "#64748B",
+    balance: 0,
+    paid: 0,
+    isMe: false,
+    role: member.role as Member["role"],
+  };
+}
+
+export interface RenameMemberInput {
+  tripId: string;
+  memberId: string;
+  name: string;
+}
+
+/**
+ * Rename an existing member (typically a guest).
+ *
+ * Only mutable fields are persisted.
+ * Throws TripRepositoryError on failure.
+ */
+export async function renameMember(input: RenameMemberInput): Promise<Member> {
+  const sb = getSupabase();
+
+  if (!input.tripId || !input.memberId) {
+    throw new TripRepositoryError("Missing trip or member ID", "UNAUTHENTICATED");
+  }
+
+  const name = input.name.trim();
+  if (!name) {
+    throw new TripRepositoryError("Member name is required", "PARSE_FAILED");
+  }
+
+  const initials = deriveInitials(name);
+
+  const { data: member, error: memberError } = await sb
+    .from("trip_members")
+    .update({
+      name,
+      initials,
+    })
+    .eq("id", input.memberId)
+    .eq("trip_id", input.tripId)
+    .select("*")
+    .single();
+
+  if (memberError) {
+    console.error("[tripRepository] rename member failed:", {
+      message: memberError.message,
+      code: memberError.code,
+      details: memberError.details,
+      hint: memberError.hint,
+    });
+    throw new TripRepositoryError(
+      "Failed to rename member",
+      "FETCH_FAILED",
+      memberError
+    );
+  }
+
+  if (!member) {
+    throw new TripRepositoryError(
+      "Member not found after rename",
+      "FETCH_FAILED"
+    );
+  }
+
+  return {
+    id: member.id,
+    name: member.name,
+    initials: member.initials ?? "",
+    color: member.color ?? "#64748B",
+    balance: 0,
+    paid: 0,
+    isMe: false,
+    role: member.role as Member["role"],
+  };
+}
+
+/**
+ * Remove a member from a trip by member ID.
+ *
+ * WARNING: This is a hard delete. Use only after financial-history checks.
+ * Throws TripRepositoryError on failure.
+ */
+export async function removeMember(tripId: string, memberId: string): Promise<void> {
+  const sb = getSupabase();
+
+  if (!tripId || !memberId) {
+    throw new TripRepositoryError("Missing trip or member ID", "UNAUTHENTICATED");
+  }
+
+  const { error } = await sb
+    .from("trip_members")
+    .delete()
+    .eq("id", memberId)
+    .eq("trip_id", tripId);
+
+  if (error) {
+    console.error("[tripRepository] remove member failed:", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
+    throw new TripRepositoryError(
+      "Failed to remove member",
+      "FETCH_FAILED",
+      error
+    );
+  }
+}
+
+// ── Expense mutations ──────────────────────────────────────────────────────────
+
+export interface CreateExpenseInput {
+  tripId: string;
+  title: string;
+  amount: number;
+  category: string;
+  dateIso: string;
+  paidBy: string;
+  splitIds: string[];
+  addedBy: string;
+  note?: string;
+}
+
+/**
+ * Create a new expense and its participants.
+ *
+ * Atomicity: if participant insert fails, the expense row is deleted.
+ * Returns the created Expense on success.
+ * Throws TripRepositoryError on failure.
+ */
+export async function createExpense(input: CreateExpenseInput): Promise<Expense> {
+  const sb = getSupabase();
+
+  if (!input.tripId) {
+    throw new TripRepositoryError("Missing trip ID", "UNAUTHENTICATED");
+  }
+
+  const expenseInsert = {
+    trip_id: input.tripId,
+    paid_by: input.paidBy,
+    added_by: input.addedBy,
+    title: input.title.trim(),
+    amount_minor: toMinorUnits(input.amount),
+    category: input.category,
+    date_iso: input.dateIso,
+    note: input.note ?? null,
+  };
+
+  const { data: expense, error: expenseError } = await sb
+    .from("expenses")
+    .insert(expenseInsert)
+    .select("*")
+    .single();
+
+  if (expenseError) {
+    console.error("[tripRepository] expense insert failed:", {
+      message: expenseError.message,
+      code: expenseError.code,
+      details: expenseError.details,
+      hint: expenseError.hint,
+    });
+    throw new TripRepositoryError(
+      "Failed to create expense",
+      "FETCH_FAILED",
+      expenseError
+    );
+  }
+
+  if (!expense) {
+    throw new TripRepositoryError(
+      "Expense not created",
+      "FETCH_FAILED"
+    );
+  }
+
+  // Insert participants
+  const participantRows = input.splitIds.map((memberId) => ({
+    expense_id: expense.id,
+    member_id: memberId,
+  }));
+
+  const { error: participantsError } = await sb
+    .from("expense_participants")
+    .insert(participantRows);
+
+  if (participantsError) {
+    console.error("[tripRepository] expense participants insert failed:", {
+      message: participantsError.message,
+      code: participantsError.code,
+      details: participantsError.details,
+      hint: participantsError.hint,
+    });
+
+    // Rollback: delete the expense
+    const { error: deleteError } = await sb
+      .from("expenses")
+      .delete()
+      .eq("id", expense.id);
+
+    if (deleteError) {
+      console.error("[tripRepository] expense rollback delete failed:", deleteError);
+    }
+
+    throw new TripRepositoryError(
+      "Failed to save expense participants",
+      "FETCH_FAILED",
+      participantsError
+    );
+  }
+
+  return mapDbExpense(expense);
+}
+
+export interface UpdateExpenseInput {
+  tripId: string;
+  expenseId: string;
+  title: string;
+  amount: number;
+  category: string;
+  dateIso: string;
+  paidBy: string;
+  splitIds: string[];
+  note?: string;
+}
+
+/**
+ * Update an existing expense and synchronize its participants.
+ *
+ * Replaces all participant rows for the expense.
+ * Returns the updated Expense on success.
+ * Throws TripRepositoryError on failure.
+ */
+export async function updateExpense(input: UpdateExpenseInput): Promise<Expense> {
+  const sb = getSupabase();
+
+  if (!input.tripId || !input.expenseId) {
+    throw new TripRepositoryError("Missing trip or expense ID", "UNAUTHENTICATED");
+  }
+
+  const updatePayload: Record<string, unknown> = {
+    title: input.title.trim(),
+    amount_minor: toMinorUnits(input.amount),
+    category: input.category,
+    date_iso: input.dateIso,
+    paid_by: input.paidBy,
+    note: input.note ?? null,
+  };
+
+  const { data: expense, error: expenseError } = await sb
+    .from("expenses")
+    .update(updatePayload)
+    .eq("id", input.expenseId)
+    .eq("trip_id", input.tripId)
+    .select("*")
+    .single();
+
+  if (expenseError) {
+    console.error("[tripRepository] expense update failed:", {
+      message: expenseError.message,
+      code: expenseError.code,
+      details: expenseError.details,
+      hint: expenseError.hint,
+    });
+    throw new TripRepositoryError(
+      "Failed to update expense",
+      "FETCH_FAILED",
+      expenseError
+    );
+  }
+
+  if (!expense) {
+    throw new TripRepositoryError(
+      "Expense not found after update",
+      "FETCH_FAILED"
+    );
+  }
+
+  // Synchronize participants: delete all and re-insert
+  const { error: deleteParticipantsError } = await sb
+    .from("expense_participants")
+    .delete()
+    .eq("expense_id", input.expenseId);
+
+  if (deleteParticipantsError) {
+    console.error("[tripRepository] expense participants delete failed:", {
+      message: deleteParticipantsError.message,
+      code: deleteParticipantsError.code,
+      details: deleteParticipantsError.details,
+      hint: deleteParticipantsError.hint,
+    });
+    throw new TripRepositoryError(
+      "Failed to update expense participants",
+      "FETCH_FAILED",
+      deleteParticipantsError
+    );
+  }
+
+  const participantRows = input.splitIds.map((memberId) => ({
+    expense_id: input.expenseId,
+    member_id: memberId,
+  }));
+
+  const { error: insertParticipantsError } = await sb
+    .from("expense_participants")
+    .insert(participantRows);
+
+  if (insertParticipantsError) {
+    console.error("[tripRepository] expense participants re-insert failed:", {
+      message: insertParticipantsError.message,
+      code: insertParticipantsError.code,
+      details: insertParticipantsError.details,
+      hint: insertParticipantsError.hint,
+    });
+    throw new TripRepositoryError(
+      "Failed to update expense participants",
+      "FETCH_FAILED",
+      insertParticipantsError
+    );
+  }
+
+  return mapDbExpense(expense);
+}
+
+/**
+ * Delete an expense by ID.
+ *
+ * Uses existing DB cascade for expense_participants.
+ * Throws TripRepositoryError on failure.
+ */
+export async function deleteExpense(tripId: string, expenseId: string): Promise<void> {
+  const sb = getSupabase();
+
+  if (!tripId || !expenseId) {
+    throw new TripRepositoryError("Missing trip or expense ID", "UNAUTHENTICATED");
+  }
+
+  const { error } = await sb
+    .from("expenses")
+    .delete()
+    .eq("id", expenseId)
+    .eq("trip_id", tripId);
+
+  if (error) {
+    console.error("[tripRepository] expense delete failed:", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
+    throw new TripRepositoryError(
+      "Failed to delete expense",
+      "FETCH_FAILED",
+      error
+    );
+  }
+}
+
+// ── Mapping helpers ──────────────────────────────────────────────────────────
+
+function mapDbExpense(db: DbExpense): Expense {
+  return {
+    id: db.id,
+    title: db.title,
+    amount: toMajorUnits(db.amount_minor),
+    category: db.category as Expense["category"],
+    paidBy: db.paid_by,
+    splitIds: [],
+    date: db.date_iso,
+    dateIso: db.date_iso,
+    note: db.note ?? undefined,
+    addedBy: db.added_by,
+    addedAt: db.created_at,
+  };
+}

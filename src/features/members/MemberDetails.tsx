@@ -14,11 +14,12 @@ import { computeMemberFinancials, computeExpenseShares, toMajorUnits } from "../
 
 export default function MemberDetails({
   member, allMembers, allExpenses, recordedSettlements, me, isCurrentUserOwner,
-  onBack, onSetMembers, onRemove,
+  onBack, onSetMembers, onRemove, onRenameMember,
 }: {
   member: Member; allMembers: Member[]; allExpenses: Expense[]; recordedSettlements: RecordedSettlement[];
   me: Member | undefined; isCurrentUserOwner: boolean;
   onBack: () => void; onSetMembers: (m: Member[]) => void; onRemove: () => void;
+  onRenameMember?: (memberId: string, name: string) => void;
 }) {
   const [showOverflow,       setShowOverflow]       = useState(false);
   const [showEditName,       setShowEditName]       = useState(false);
@@ -221,7 +222,11 @@ export default function MemberDetails({
           member={member}
           onSave={(name) => {
             const initials = name.split(" ").map((w) => w[0]?.toUpperCase() ?? "").join("").slice(0, 2);
-            onSetMembers(allMembers.map((m) => m.id === member.id ? { ...m, name, initials } : m));
+            if (onRenameMember) {
+              onRenameMember(member.id, name);
+            } else {
+              onSetMembers(allMembers.map((m) => m.id === member.id ? { ...m, name, initials } : m));
+            }
             setShowEditName(false);
           }}
           onClose={() => setShowEditName(false)}

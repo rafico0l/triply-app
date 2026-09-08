@@ -10,10 +10,14 @@ import { TOUR } from "../../lib/tour";
 
 export default function MembersView({
   members, expenses, actionsOpen, onActionsClose, onSetMembers, onTapMember,
+  onAddGuest, onRenameMember, onRemoveMember,
 }: {
   members: Member[]; expenses: Expense[];
   actionsOpen: boolean; onActionsClose: () => void;
   onSetMembers: (m: Member[]) => void; onTapMember: (id: string) => void;
+  onAddGuest?: (name: string) => void;
+  onRenameMember?: (memberId: string, name: string) => void;
+  onRemoveMember?: (memberId: string) => void;
 }) {
   const [showInvite,   setShowInvite]   = useState(false);
   const [showAddGuest, setShowAddGuest] = useState(false);
@@ -24,11 +28,15 @@ export default function MembersView({
   const onlyOwner  = members.length === 1 && members[0].isMe;
 
   function handleAddGuest(name: string) {
-    const initials = name.split(" ").map((w) => w[0]?.toUpperCase() ?? "").join("").slice(0, 2);
-    const guestId = typeof crypto !== "undefined" && crypto.randomUUID
-      ? `g-${crypto.randomUUID()}`
-      : `g-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-    onSetMembers([...members, { id: guestId, name, initials, color: "#64748B", balance: 0, paid: 0, role: "guest" }]);
+    if (onAddGuest) {
+      onAddGuest(name);
+    } else {
+      const initials = name.split(" ").map((w) => w[0]?.toUpperCase() ?? "").join("").slice(0, 2);
+      const guestId = typeof crypto !== "undefined" && crypto.randomUUID
+        ? `g-${crypto.randomUUID()}`
+        : `g-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+      onSetMembers([...members, { id: guestId, name, initials, color: "#64748B", balance: 0, paid: 0, role: "guest" }]);
+    }
     setShowAddGuest(false);
   }
 
