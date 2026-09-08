@@ -41,6 +41,7 @@ export interface TripDetailsViewProps {
   onInvite?: () => void;
   onSaveTrip?: (patch: { name: string; startDate?: string; endDate?: string; budget?: number }) => void;
   onDeleteTrip?: () => void;
+  onGoHome?: () => void;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -54,6 +55,7 @@ export default function TripDetailsView({
   onInvite,
   onSaveTrip,
   onDeleteTrip,
+  onGoHome,
 }: TripDetailsViewProps) {
   // ── Derived (always from canonical trip) ──────────────────────────────────
   const totalSpentMinor = computeTotalSpent(trip.expenses);
@@ -390,6 +392,21 @@ export default function TripDetailsView({
             </span>
           </div>
         </div>
+
+        {!isEditing && onGoHome && (
+          <button
+            onClick={onGoHome}
+            className="pressable w-full bg-white rounded-[18px] border border-[#E2E8F0] shadow-sm px-4 py-3.5 flex items-center justify-between"
+          >
+            <div>
+              <p className="text-[14px] font-700 text-[#0A86A0]">Enter trip</p>
+              <p className="text-[12px] text-[#94A3B8] mt-0.5">View expenses, balances, and members</p>
+            </div>
+            <span className="text-[#94A3B8]">
+              <HugeiconsIcon icon={ArrowRight01Icon} size={18} color="currentColor" strokeWidth={1.75} />
+            </span>
+          </button>
+        )}
 
         {/* ── 3. Trip Spending / Budget Card ─────────────────────────────────── */}
         <div className="bg-white rounded-[18px] border border-[#E2E8F0] shadow-sm p-4">

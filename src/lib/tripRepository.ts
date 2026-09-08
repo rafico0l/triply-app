@@ -422,3 +422,169 @@ function deriveInitials(name: string): string {
   }
   return parts[0]?.slice(0, 2).toUpperCase() ?? "";
 }
+
+// ── Update mutation ───────────────────────────────────────────────────────────
+
+export interface UpdateTripInput {
+  name: string;
+  destination?: string;
+  startDate?: string;
+  endDate?: string;
+  budget?: number;
+}
+
+/**
+ * Update an existing trip.
+ *
+ * Only mutable schema-backed fields are persisted.
+ * Returns the mapped canonical Trip on success.
+ * Throws TripRepositoryError on failure.
+ */
+export async function updateTrip(
+  tripId: string,
+  patch: UpdateTripInput
+): Promise<Trip> {
+  const sb = getSupabase();
+
+  if (!tripId) {
+    throw new TripRepositoryError("Missing trip ID", "UNAUTHENTICATED");
+  }
+
+  const updatePayload: Record<string, unknown> = {
+    name: patch.name.trim(),
+    destination: patch.destination?.trim() || null,
+    start_date: patch.startDate || null,
+    end_date: patch.endDate || null,
+    budget_minor: patch.budget && patch.budget > 0 ? toMinorUnits(patch.budget) : null,
+  };
+
+  const { data: trip, error: tripError } = await sb
+    .from("trips")
+    .update(updatePayload)
+    .eq("id", tripId)
+    .select("*")
+    .single();
+
+  if (tripError) {
+    console.error("[tripRepository] trip update failed:", {
+      message: tripError.message,
+      code: tripError.code,
+      details: tripError.details,
+      hint: tripError.hint,
+    });
+    throw new TripRepositoryError(
+      "Failed to update trip",
+      "FETCH_FAILED",
+      tripError
+    );
+  }
+
+  if (!trip) {
+    throw new TripRepositoryError(
+      "Trip not found after update",
+      "FETCH_FAILED"
+    );
+  }
+
+  // Reload related facts to return a complete canonical Trip
+  const [membersResult, expensesResult, settlementsResult] =
+    await Promise.all([
+      sb.from("trip_members").select("*").eq("trip_id", trip.id),
+      sb.from("expenses").select("*").eq("trip_id", trip.id),
+      sb.from("settlements").select("*").eq("trip_id", trip.id),
+    ]);
+
+  if (membersResult.error) {
+    throw new TripRepositoryError(
+      "Failed to reload members after update",
+      "FETCH_FAILED",
+      membersResult.error
+    );
+  }
+  if (expensesResult.error) {
+    throw new TripRepositoryError(
+      "Failed to reload expenses after update",
+      "FETCH_FAILED",
+      expensesResult.error
+    );
+  }
+  if (settlementsResult.error) {
+    throw new TripRepositoryError(
+      "Failed to reload settlements after update",
+      "FETCH_FAILED",
+      settlementsResult.error
+    );
+  }
+
+  const dbMembers = membersResult.data ?? [];
+  const dbExpenses = expensesResult.data ?? [];
+  const dbSettlements = settlementsResult.data ?? [];
+
+  let dbParticipants: DbExpenseParticipant[] = [];
+  if (dbExpenses.length > 0) {
+    const expenseIds = dbExpenses.map((e) => e.id);
+    const { data: participants, error: participantsError } = await sb
+      .from("expense_participants")
+      .select("*")
+      .in("expense_id", expenseIds);
+
+    if (participantsError) {
+      throw new TripRepositoryError(
+        "Failed to reload expense participants after update",
+        "FETCH_FAILED",
+        participantsError
+      );
+    }
+
+    dbParticipants = participants ?? [];
+  }
+
+  const membersByTrip = buildMap(dbMembers, "trip_id");
+  const expensesByTrip = buildMap(dbExpenses, "trip_id");
+  const participantsByExpense = buildMap(dbParticipants, "expense_id");
+  const settlementsByTrip = buildMap(dbSettlements, "trip_id");
+
+  return mapTrip(
+    trip,
+    membersByTrip,
+    expensesByTrip,
+    participantsByExpense,
+    settlementsByTrip,
+    (trip.created_by)
+  );
+}
+
+// ── Delete mutation ───────────────────────────────────────────────────────────
+
+/**
+ * Delete a trip by ID.
+ *
+ * Uses existing DB cascade relationships.
+ * Throws TripRepositoryError on failure.
+ */
+export async function deleteTrip(tripId: string): Promise<void> {
+  const sb = getSupabase();
+
+  if (!tripId) {
+    throw new TripRepositoryError("Missing trip ID", "UNAUTHENTICATED");
+  }
+
+  const { error } = await sb
+    .from("trips")
+    .delete()
+    .eq("id", tripId);
+
+  if (error) {
+    console.error("[tripRepository] trip delete failed:", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
+    throw new TripRepositoryError(
+      "Failed to delete trip",
+      "FETCH_FAILED",
+      error
+    );
+  }
+}

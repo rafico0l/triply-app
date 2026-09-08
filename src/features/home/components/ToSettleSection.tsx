@@ -1,17 +1,21 @@
-import type { Member } from "../../../domain/types";
+import type { Member, Expense, RecordedSettlement } from "../../../domain/types";
 import { Avatar } from "../../../components/shared/Avatar";
 import { fmt } from "../../../lib/format";
 import { computeSuggestedPayments } from "../../settlements/settlementUtils";
 
 export default function ToSettleSection({
   members,
+  expenses,
+  recordedSettlements,
   onViewAll,
 }: {
   members: Member[];
+  expenses: Expense[];
+  recordedSettlements: RecordedSettlement[];
   onViewAll: () => void;
 }) {
   const me = members.find((m) => m.isMe);
-  const suggestedPayments = computeSuggestedPayments(members);
+  const suggestedPayments = computeSuggestedPayments(members, expenses, recordedSettlements);
   const totalOwedToMe = suggestedPayments
     .filter((p) => p.to === me?.id)
     .reduce((s, p) => s + p.amount, 0);

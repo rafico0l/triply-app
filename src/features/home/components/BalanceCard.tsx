@@ -3,8 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { MapIcon, Add01Icon, AiSwapIcon } from "@hugeicons/core-free-icons";
 import { fmt } from "../../../lib/format";
 import { TOUR } from "../../../lib/tour";
-import { BUDGET } from "../homeConstants";
-import { computeTotalSpent, computeBudgetStats, toMajorUnits } from "../../../domain/finance";
+import { computeTotalSpent, computeBudgetStats, toMajorUnits, toMinorUnits } from "../../../domain/finance";
 
 export default function BalanceCard({
   expenses,
@@ -12,21 +11,23 @@ export default function BalanceCard({
   empty = false,
   onAddExpense,
   onSettle,
+  budget,
 }: {
   expenses: Expense[];
   members: Member[];
   empty?: boolean;
   onAddExpense?: () => void;
   onSettle?: () => void;
+  budget?: number;
 }) {
   const totalMinor = computeTotalSpent(expenses);
   const total = toMajorUnits(totalMinor);
   const me = members.find((m) => m.isMe);
   const myBalance = me?.balance ?? 0;
-  const hasBudget = BUDGET != null && BUDGET > 0;
-  const budgetStats = computeBudgetStats(totalMinor, BUDGET);
-  const remaining = budgetStats ? toMajorUnits(budgetStats.remainingMinor) : BUDGET - total;
-  const progress = budgetStats ? budgetStats.spentPercentage / 100 : Math.min(total / BUDGET, 1);
+  const hasBudget = budget != null && budget > 0;
+  const budgetStats = computeBudgetStats(totalMinor, budget != null ? toMinorUnits(budget) : undefined);
+  const remaining = budgetStats ? toMajorUnits(budgetStats.remainingMinor) : (budget ?? 0) - total;
+  const progress = budgetStats ? budgetStats.spentPercentage / 100 : Math.min(total / (budget ?? 1), 1);
 
   const balanceZero = myBalance === 0;
   const balancePositive = myBalance > 0;
@@ -70,7 +71,7 @@ export default function BalanceCard({
                     : "text-[#0F172A]"
               }`}
             >
-              {balanceZero ? "৳0" : balancePositive ? `+${fmt(myBalance)}` : fmt(myBalance)}
+              {balanceZero ? "৳0" : balancePositive ? `+${fmt(myBalance)}` : `-${fmt(myBalance)}`}
             </span>
             <span
               className={`text-[13px] font-600 ${
@@ -100,7 +101,7 @@ export default function BalanceCard({
               Trip spent
             </p>
             <span className="num text-[12px] font-600 text-[#475569]">
-              {hasBudget ? `${fmt(total)} of ${fmt(BUDGET)}` : fmt(total)}
+              {hasBudget ? `${fmt(total)} of ${fmt(budget ?? 0)}` : fmt(total)}
             </span>
           </div>
         </div>

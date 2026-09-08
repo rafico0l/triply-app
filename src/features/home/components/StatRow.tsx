@@ -1,9 +1,8 @@
 import type { Expense, Member } from "../../../domain/types";
 import { fmt } from "../../../lib/format";
-import { BUDGET } from "../homeConstants";
-import { computeTotalSpent, computeMemberPaid, computeMemberShare, computeBudgetStats, toMajorUnits } from "../../../domain/finance";
+import { computeTotalSpent, computeMemberPaid, computeMemberShare, computeBudgetStats, toMajorUnits, toMinorUnits } from "../../../domain/finance";
 
-export default function StatRow({ expenses, members, empty = false }: { expenses: Expense[]; members: Member[]; empty?: boolean }) {
+export default function StatRow({ expenses, members, empty = false, budget }: { expenses: Expense[]; members: Member[]; empty?: boolean; budget?: number }) {
   const totalMinor = computeTotalSpent(expenses);
   const total = toMajorUnits(totalMinor);
   const me = members.find((m) => m.isMe);
@@ -11,11 +10,12 @@ export default function StatRow({ expenses, members, empty = false }: { expenses
   const myShare = me ? toMajorUnits(computeMemberShare(me.id, expenses)) : 0;
   const myShareRounded = Math.round(myShare);
   const myBalance = me?.balance ?? 0;
-  const budgetStats = computeBudgetStats(totalMinor, BUDGET);
-  const remaining = budgetStats ? toMajorUnits(budgetStats.remainingMinor) : BUDGET - total;
-  const progress = budgetStats ? budgetStats.spentPercentage / 100 : Math.min(total / BUDGET, 1);
+  const budgetStats = computeBudgetStats(totalMinor, budget != null ? toMinorUnits(budget) : undefined);
+  const remaining = budgetStats ? toMajorUnits(budgetStats.remainingMinor) : (budget ?? 0) - total;
+  const progress = budgetStats ? budgetStats.spentPercentage / 100 : Math.min(total / (budget ?? 1), 1);
 
   if (empty || !me) {
+    const displayBudget = budget ?? 0;
     return (
       <div className="px-4 pt-4 pb-3">
         <div className="bg-white rounded-[16px] border border-[#E1E7EF] overflow-hidden">
@@ -25,8 +25,8 @@ export default function StatRow({ expenses, members, empty = false }: { expenses
           </div>
           <div className="px-5 pb-3 border-b border-[#F1F5F9]">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="num text-[12px] font-500 text-[#94A3B8]">{fmt(0)} of {fmt(BUDGET)}</span>
-              <span className="num text-[12px] font-600 text-[#475569]">{fmt(BUDGET)} remaining</span>
+              <span className="num text-[12px] font-500 text-[#94A3B8]">{fmt(0)} of {fmt(displayBudget)}</span>
+              <span className="num text-[12px] font-600 text-[#475569]">{fmt(displayBudget)} remaining</span>
             </div>
             <div className="h-[3px] bg-[#F1F5F9] rounded-full overflow-hidden"><div className="h-full bg-[#0A86A0] rounded-full" style={{ width: "0%" }} /></div>
           </div>
@@ -53,7 +53,7 @@ export default function StatRow({ expenses, members, empty = false }: { expenses
         </div>
         <div className="px-5 pb-3 border-b border-[#F1F5F9]">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="num text-[12px] font-500 text-[#94A3B8]">{fmt(total)} of {fmt(BUDGET)}</span>
+            <span className="num text-[12px] font-500 text-[#94A3B8]">{fmt(total)} of {fmt(budget ?? 0)}</span>
             <span className="num text-[12px] font-600 text-[#475569]">{fmt(remaining)} remaining</span>
           </div>
           <div className="h-[3px] bg-[#F1F5F9] rounded-full overflow-hidden">

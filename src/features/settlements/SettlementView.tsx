@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Member, Expense, RecordedSettlement } from "../../domain/types";
 import { fmt } from "../../lib/format";
 import { Avatar } from "../../components/shared/Avatar";
@@ -9,7 +9,7 @@ import RecordPaymentSheet from "./components/RecordPaymentSheet";
 
 export default function SettlementView({
   members, expenses, recordedSettlements, me, isCurrentUserOwner,
-  onRecordSettlement, onOpenHistory,
+  onRecordSettlement, onOpenHistory, error, onClearError,
 }: {
   members: Member[];
   expenses: Expense[];
@@ -18,14 +18,22 @@ export default function SettlementView({
   isCurrentUserOwner: boolean;
   onRecordSettlement: (from: string, to: string, amount: number) => void;
   onOpenHistory: () => void;
+  error?: string | null;
+  onClearError?: () => void;
 }) {
   const [recordPayment, setRecordPayment] = useState<{ fromId: string; toId: string; amount: number } | null>(null);
   const [showManual,    setShowManual]    = useState(false);
   const [toast,         setToast]         = useState<{ from: string; to: string; amount: number } | null>(null);
 
+  useEffect(() => {
+    if (!recordPayment && !showManual && onClearError) {
+      onClearError();
+    }
+  }, [recordPayment, showManual, onClearError]);
+
   const suggestedPayments = computeSuggestedPayments(members, expenses, recordedSettlements);
   const totalToSettle     = suggestedPayments.reduce((s, p) => s + p.amount, 0);
-  const isFullySettled    = members.every((m) => Math.abs(m.balance) <= 2);
+  const isFullySettled    = suggestedPayments.length === 0;
 
   function handleRecord(from: string, to: string, amount: number) {
     onRecordSettlement(from, to, amount);
@@ -42,6 +50,14 @@ export default function SettlementView({
   if (isFullySettled) {
     return (
       <div>
+        {error && (
+          <div className="px-4 pt-4 pb-1">
+            <div className="bg-[#FEE2E2] border border-[#FECACA] rounded-[12px] px-4 py-3 flex items-center justify-between">
+              <p className="text-[13px] font-600 text-[#DC2626]">{error}</p>
+              {onClearError && <button onClick={onClearError} className="text-[#DC2626] font-700 text-[13px]">Dismiss</button>}
+            </div>
+          </div>
+        )}
         <div className="flex flex-col items-center justify-center px-8 pt-12 pb-6 text-center">
           <div className="w-16 h-16 rounded-full bg-[#F0FDF4] border-2 border-[#BBF7D0] flex items-center justify-center text-[#15803D] mb-5">
             <IconCheckCircle2 size={30} />
@@ -88,6 +104,14 @@ export default function SettlementView({
   // ── Normal state (payments remaining) ────────────────────────────────────────
   return (
     <div>
+      {error && (
+        <div className="px-4 pt-4 pb-1">
+          <div className="bg-[#FEE2E2] border border-[#FECACA] rounded-[12px] px-4 py-3 flex items-center justify-between">
+            <p className="text-[13px] font-600 text-[#DC2626]">{error}</p>
+            {onClearError && <button onClick={onClearError} className="text-[#DC2626] font-700 text-[13px]">Dismiss</button>}
+          </div>
+        </div>
+      )}
       {/* Summary banner */}
       <div className="px-4 pt-4 pb-1">
         <div className="bg-[#EFF9FB] border border-[#A3DFE9] rounded-[14px] px-4 py-3.5 flex items-center justify-between gap-3">

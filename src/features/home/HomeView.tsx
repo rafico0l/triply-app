@@ -12,6 +12,7 @@ export default function HomeView({
   onAddExpense,
   onSettle,
   currentUserName,
+  budget,
 }: {
   expenses: Expense[];
   members: Member[];
@@ -20,6 +21,7 @@ export default function HomeView({
   onAddExpense?: () => void;
   onSettle?: () => void;
   currentUserName?: string;
+  budget?: number;
 }) {
   const me = members.find((m) => m.isMe);
   const userName = currentUserName ?? me?.name ?? "You";
@@ -33,6 +35,7 @@ export default function HomeView({
         empty={empty}
         onAddExpense={onAddExpense}
         onSettle={onSettle}
+        budget={budget}
       />
       <RecentExpenses
         expenses={expenses}

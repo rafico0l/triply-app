@@ -19,7 +19,7 @@ import { computeAllMemberFinancials, toMajorUnits } from "../domain/finance";
 import type { Trip } from "../domain/trip";
 import { signOut, getCurrentUser, ensureCurrentUserProfile, getCurrentUserProfileName } from "../lib/auth";
 import { getSupabase } from "../lib/supabase";
-import { loadTrips, TripRepositoryError, createTrip } from "../lib/tripRepository";
+import { loadTrips, TripRepositoryError, createTrip, updateTrip, deleteTrip } from "../lib/tripRepository";
 import type { User } from "@supabase/supabase-js";
 
 const DEMO_INVITE_MODE = false;
@@ -509,6 +509,8 @@ function AuthenticatedApp({
   const [scrolled,            setScrolled]            = useState(false);
   const [membersActionsOpen,  setMembersActionsOpen]  = useState(false);
   const [tripDetailId,        setTripDetailId]        = useState<string | null>(null);
+  const [settlementError,     setSettlementError]     = useState<string | null>(null);
+  const [tripError,           setTripError]           = useState<string | null>(null);
 
   const mobileScrollRef = useRef<HTMLDivElement>(null);
   const handleMobileScroll = () => setScrolled((mobileScrollRef.current?.scrollTop ?? 0) > 6);
@@ -565,15 +567,25 @@ function AuthenticatedApp({
   }
 
   function handleRecordSettlement(from: string, to: string, amount: number) {
+    if (!me) {
+      setSettlementError("You must be a member of this trip to record a payment.");
+      return;
+    }
+
     const isoDate     = new Date().toISOString().slice(0, 10);
     const dateDisplay = new Date(isoDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
     const newS: RecordedSettlement = {
       id: `rs${Date.now()}`, from, to, amount,
       date: dateDisplay, dateIso: isoDate,
-      recordedBy: me?.id ?? "6",
+      recordedBy: me.id,
       syncStatus: "pending",
     };
     updateCurrentTrip((t) => ({ ...t, settlements: [newS, ...t.settlements] }));
+    setSettlementError(null);
+  }
+
+  function clearSettlementError() {
+    setSettlementError(null);
   }
 
   function handleDeleteSettlement(id: string) {
@@ -594,28 +606,59 @@ function AuthenticatedApp({
   }
 
   function handleSaveTrip(patch: { name: string; startDate?: string; endDate?: string; budget?: number }) {
-    updateCurrentTrip((t) => ({
-      ...t,
-      name: patch.name,
-      startDate: patch.startDate,
-      endDate: patch.endDate,
-      dates: computeDatesDisplay(patch.startDate, patch.endDate),
-      budget: patch.budget,
-    }));
+    if (!currentTripId) {
+      setTripError("Cannot save: no trip selected.");
+      return;
+    }
+
+    updateTrip(currentTripId, patch)
+      .then((updated) => {
+        setTrips((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+        setTripError(null);
+      })
+      .catch((err) => {
+        console.error("[app] save trip failed:", err);
+        setTripError(
+          err instanceof TripRepositoryError
+            ? err.message
+            : "Failed to save changes. Please try again."
+        );
+      });
   }
 
   function handleDeleteTrip() {
-    const remaining = trips.filter((t) => t.id !== currentTripId);
-    setTrips(remaining);
-    setTripDetailId(null);
-    if (remaining.length > 0) {
-      const next = remaining[0];
-      setCurrentTripId(next.id);
-      onSelectTour?.(next.id);
-    } else {
-      setCurrentTripId("");
+    if (!currentTripId) {
+      setTripError("Cannot delete: no trip selected.");
+      return;
     }
-    setTab("trips");
+
+    deleteTrip(currentTripId)
+      .then(() => {
+        const remaining = trips.filter((t) => t.id !== currentTripId);
+        setTrips(remaining);
+        setTripDetailId(null);
+        if (remaining.length > 0) {
+          const next = remaining[0];
+          setCurrentTripId(next.id);
+          onSelectTour?.(next.id);
+        } else {
+          setCurrentTripId("");
+        }
+        setTab("trips");
+        setTripError(null);
+      })
+      .catch((err) => {
+        console.error("[app] delete trip failed:", err);
+        setTripError(
+          err instanceof TripRepositoryError
+            ? err.message
+            : "Failed to delete trip. Please try again."
+        );
+      });
+  }
+
+  function clearTripError() {
+    setTripError(null);
   }
 
   const headerConfig: Record<Tab, { title: string; subtitle?: string; showBack: boolean }> = {
@@ -634,8 +677,8 @@ function AuthenticatedApp({
 
   const PageContent = () => (
     <>
-      {tab === "home"       && <HomeView       expenses={currentExpenses} members={currentMembers} onTabChange={setTab} empty={isEmpty} onAddExpense={() => setShowAddExpense(true)} onSettle={() => setTab("settlement")} currentUserName={currentUserName ?? undefined} />}
-      {tab === "trips"      && <TripsView trips={trips} onNewTour={onNewTour} onBack={() => setTab("home")} onSelectTour={(id) => { setCurrentTripId(id); setTab("home"); }} />}
+      {tab === "home"       && <HomeView       expenses={currentExpenses} members={currentMembers} onTabChange={setTab} empty={isEmpty} onAddExpense={() => setShowAddExpense(true)} onSettle={() => setTab("settlement")} currentUserName={currentUserName ?? undefined} budget={currentTrip.budget} />}
+      {tab === "trips"      && <TripsView trips={trips} onNewTour={onNewTour} onBack={() => setTab("home")} onSelectTour={(id) => { setCurrentTripId(id); setTripDetailId(id); }} />}
       {tab === "expenses"   && <ExpensesView   expenses={currentExpenses} members={currentMembers} onTapExpense={(id) => setSubScreen({ type: "expense-detail", id })} />}
       {tab === "members"    && (
         <MembersView
@@ -654,6 +697,8 @@ function AuthenticatedApp({
           isCurrentUserOwner={me?.role === "owner"}
           onRecordSettlement={handleRecordSettlement}
           onOpenHistory={() => setSubScreen({ type: "settlement-history" })}
+          error={settlementError}
+          onClearError={clearSettlementError}
         />
       )}
       {tab === "settings"   && (
@@ -682,6 +727,14 @@ function AuthenticatedApp({
 
   return (
     <div className="h-full bg-[#F4F6F9] overflow-hidden">
+      {tripError && (
+        <div className="fixed top-0 left-0 right-0 z-50 px-4 pt-3">
+          <div className="bg-[#FEE2E2] border border-[#FECACA] rounded-[12px] px-4 py-3 flex items-center justify-between max-w-[600px] mx-auto">
+            <p className="text-[13px] font-600 text-[#DC2626]">{tripError}</p>
+            <button onClick={clearTripError} className="text-[#DC2626] font-700 text-[13px] shrink-0 ml-3">Dismiss</button>
+          </div>
+        </div>
+      )}
 
       {/* ══ MOBILE ══ */}
       <div className="flex flex-col h-full lg:hidden">
@@ -866,6 +919,7 @@ function AuthenticatedApp({
               onTapMember={() => setSubScreen({ type: "members" })}
               onSaveTrip={handleSaveTrip}
               onDeleteTrip={handleDeleteTrip}
+              onGoHome={() => { setTripDetailId(null); setTab("home"); }}
             />
         </div>
       )}
