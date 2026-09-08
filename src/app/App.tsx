@@ -279,6 +279,11 @@ export default function App() {
   const [createError, setCreateError]         = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string | null>(null);
 
+  const currentTrip = trips.find((t) => t.id === currentTripId) ?? trips[0] ?? {
+    id: "", name: "", dates: "", status: "active" as const,
+    members: [], expenses: [], settlements: [],
+  };
+
   // ── Session restoration on mount ────────────────────────────────────────────
   useEffect(() => {
     let mounted = true;
@@ -428,7 +433,7 @@ export default function App() {
     );
   }
   if (screen === "inviteMembers") {
-    return <InviteMembers tourName={TOUR.name} tourDates={TOUR.dates} onBack={() => setScreen("createTour")} onDone={() => setScreen("tour")} />;
+    return <InviteMembers tourName={currentTrip.name} tourDates={currentTrip.dates} onBack={() => setScreen("createTour")} onDone={() => setScreen("tour")} />;
   }
   if (screen === "tourList") {
     return <TourList onSelectTour={(id: string) => { setActiveTourId(id); setScreen("tour"); }} onNewTour={() => setScreen("createTour")} />;
@@ -482,13 +487,14 @@ export default function App() {
     onSignOut={handleSignOut}
     currentUser={currentUser}
     currentUserName={currentUserName}
+    currentTrip={currentTrip}
   />;
 }
 
 function AuthenticatedApp({
   isEmpty = false, onNewTour, onSelectTour, onSignOut, currentUser,
   trips, setTrips, currentTripId, setCurrentTripId,
-  currentUserName,
+  currentUserName, currentTrip,
 }: {
   isEmpty?: boolean;
   onNewTour: () => void;
@@ -500,6 +506,7 @@ function AuthenticatedApp({
   currentTripId: string;
   setCurrentTripId: React.Dispatch<React.SetStateAction<string>>;
   currentUserName: string | null;
+  currentTrip: Trip;
 }) {
   const [tab,                 setTab]                 = useState<Tab>("home");
   const [syncStatus]                                  = useState<SyncStatus>("pending");
@@ -515,10 +522,6 @@ function AuthenticatedApp({
   const mobileScrollRef = useRef<HTMLDivElement>(null);
   const handleMobileScroll = () => setScrolled((mobileScrollRef.current?.scrollTop ?? 0) > 6);
 
-  const currentTrip = trips.find((t) => t.id === currentTripId) ?? trips[0] ?? {
-    id: "", name: "", dates: "", status: "active" as const,
-    members: [], expenses: [], settlements: [],
-  };
   const currentMembers = computeMembers(currentTrip.members, currentTrip.expenses, currentTrip.settlements);
   const currentExpenses = currentTrip.expenses;
   const currentSettlements = currentTrip.settlements;
@@ -781,7 +784,7 @@ function AuthenticatedApp({
   }
 
   const headerConfig: Record<Tab, { title: string; subtitle?: string; showBack: boolean }> = {
-    home:       { title: TOUR.name, subtitle: TOUR.dates, showBack: false },
+    home:       { title: currentTrip.name, subtitle: currentTrip.dates, showBack: false },
     trips:      { title: "Trips",                        showBack: false },
     expenses:   { title: "Expenses",                      showBack: false },
     members:    { title: "Members",                       showBack: false },
@@ -902,8 +905,8 @@ function AuthenticatedApp({
               <div className="w-7 h-7 rounded-[8px] bg-[#EFF9FB] text-[#0A86A0] flex items-center justify-center"><IconMapPin size={14} /></div>
               <span className="text-[10px] font-700 text-[#94A3B8] uppercase tracking-widest">Active tour</span>
             </div>
-            <p className="text-[14px] font-700 text-[#0F172A] leading-snug">{TOUR.name}</p>
-            <p className="text-[12px] text-[#94A3B8] font-500 mt-1">{TOUR.dates}</p>
+            <p className="text-[14px] font-700 text-[#0F172A] leading-snug">{currentTrip.name}</p>
+            <p className="text-[12px] text-[#94A3B8] font-500 mt-1">{currentTrip.dates}</p>
           </div>
           <SidebarNav active={tab} onChange={setTab} />
           <div className="px-4 py-4 border-t border-[#F1F5F9]">
@@ -938,12 +941,12 @@ function AuthenticatedApp({
       {/* ── Add / Edit Expense ─────────────────────────────────────────────── */}
       {(showAddExpense || editingExpense) && (
         <AddExpense
-          tourName={TOUR.name}
+          tourName={currentTrip.name}
           members={currentMembers.map((m) => ({
             id: m.id, name: m.name, initials: m.initials, color: m.color, isMe: m.isMe,
           }))}
-          tourStartDate={TOUR.startDate}
-          tourEndDate={TOUR.endDate}
+          tourStartDate={currentTrip.startDate}
+          tourEndDate={currentTrip.endDate}
           initialExpense={editingExpense ? {
             id:          editingExpense.id,
             amount:      editingExpense.amount,
