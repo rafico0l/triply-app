@@ -22,7 +22,7 @@ export interface Tour {
   coverImage?: string;
 }
 
-function StatusBadge({ status, isCurrent }: { status: TourStatus; isCurrent?: boolean }) {
+function StatusBadge({ status }: { status: TourStatus; isCurrent?: boolean }) {
   if (status === "completed") {
     return (
       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-700 bg-[#F8FAFC] text-[#64748B] border border-[#E2E8F0] shrink-0">
@@ -30,7 +30,7 @@ function StatusBadge({ status, isCurrent }: { status: TourStatus; isCurrent?: bo
       </span>
     );
   }
-  if (isCurrent && status === "active") {
+  if (status === "active") {
     return (
       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-700 bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0] shrink-0">
         Active
@@ -60,25 +60,23 @@ export default function TripCard({
   const isUpcoming = tour.status === "upcoming";
   const isCompleted = tour.status === "completed";
 
-  const isActiveCurrent = isActive && isCurrent;
-
-  const cardBg = isActiveCurrent ? "bg-[#F0F9FA]" : isCompleted ? "bg-[#FAFBFC]" : "bg-white";
-  const cardBorder = isActiveCurrent
+  const cardBg = isActive ? "bg-[#F0F9FA]" : isCompleted ? "bg-[#FAFBFC]" : "bg-white";
+  const cardBorder = isActive
     ? "border-2 border-[#0A86A0]"
     : isCompleted
     ? "border border-[#E2E8F0]"
     : "border border-[#E1E7EF] hover:border-[#CBD5E1]";
-  const cardShadow = isActiveCurrent
+  const cardShadow = isActive
     ? "shadow-[0_2px_8px_rgba(10,134,160,0.08)]"
     : isCompleted
     ? "shadow-none"
     : "shadow-[0_1px_2px_rgba(15,23,42,0.03)]";
 
-  const iconBg = isActiveCurrent ? "bg-[#EFF9FB]" : isCompleted ? "bg-[#F1F5F9]" : "bg-[#F8FAFC]";
-  const iconColor = isActiveCurrent ? "text-[#0A86A0]" : isCompleted ? "text-[#94A3B8]" : "text-[#64748B]";
+  const iconBg = isActive ? "bg-[#EFF9FB]" : isCompleted ? "bg-[#F1F5F9]" : "bg-[#F8FAFC]";
+  const iconColor = isActive ? "text-[#0A86A0]" : isCompleted ? "text-[#94A3B8]" : "text-[#64748B]";
 
   const nameColor = isCompleted ? "text-[#64748B]" : "text-[#0F172A]";
-  const nameWeight = isActiveCurrent ? "font-700" : "font-600";
+  const nameWeight = isActive ? "font-700" : "font-600";
 
   const secondaryColor = isCompleted ? "text-[#94A3B8]" : "text-[#475569]";
   const tertiaryColor = isCompleted ? "text-[#94A3B8]" : "text-[#64748B]";

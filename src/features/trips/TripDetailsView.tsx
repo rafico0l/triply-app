@@ -1,13 +1,7 @@
-import { useState, useId, useCallback, useEffect } from "react";
+import { useState, useId, useEffect } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   ArrowLeft01Icon,
-  UserGroupIcon,
-  Calendar01Icon,
-  Money01Icon,
-  PlusIcon,
-  Add01Icon,
-  ArrowRight01Icon,
   Cancel01Icon,
   AlertCircleIcon,
 } from "@hugeicons/core-free-icons";
@@ -16,20 +10,13 @@ import { getCategoryMeta } from "../../lib/categoryMeta";
 import { Avatar } from "../../components/shared/Avatar";
 import type { Member, Expense } from "../../domain/types";
 import type { Trip } from "../../domain/trip";
-import type { Tour } from "./components/TripCard";
-import { computeTotalSpent, computeBudgetStats, toMajorUnits, toMinorUnits } from "../../domain/finance";
-import { IconDots } from "../../components/shared/icons";
+import { computeTripStatus, computeDurationDays } from "../../domain/trip";
+import { computeTotalSpent, computeMemberShare, computeBudgetStats, toMajorUnits, toMinorUnits } from "../../domain/finance";
+import { IconDots, IconDotsV } from "../../components/shared/icons";
 import TripOverflowSheet from "./components/TripOverflowSheet";
 import DeleteTripSheet from "./components/DeleteTripSheet";
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-function formatDates(start?: string, end?: string): string {
-  if (!start) return "";
-  const startStr = new Date(start + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  if (!end || end === start) return startStr;
-  const endStr = new Date(end + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  return `${startStr}\u2013${endStr}`;
-}
+import ExpenseOverflowSheet from "../expenses/components/ExpenseOverflowSheet";
+import DeleteExpenseSheet from "../expenses/components/DeleteExpenseSheet";
 
 // ─── Props ───────────────────────────────────────────────────────────────────
 export interface TripDetailsViewProps {
@@ -42,6 +29,8 @@ export interface TripDetailsViewProps {
   onInvite?: () => void;
   onSaveTrip?: (patch: { name: string; startDate?: string; endDate?: string; budget?: number }) => void;
   onDeleteTrip?: () => void;
+  onEditExpense?: (expense: Expense) => void;
+  onDeleteExpense?: (expenseId: string) => void;
   onGoHome?: () => void;
 }
 
@@ -56,9 +45,11 @@ export default function TripDetailsView({
   onInvite,
   onSaveTrip,
   onDeleteTrip,
+  onEditExpense,
+  onDeleteExpense,
   onGoHome,
 }: TripDetailsViewProps) {
-  // ── Derived (always from canonical trip) ──────────────────────────────────
+  // ── Derived ─────────────────────────────────────────────────────────────
   const totalSpentMinor = computeTotalSpent(trip.expenses);
   const totalSpent = toMajorUnits(totalSpentMinor);
   const budgetStats = computeBudgetStats(totalSpentMinor, trip.budget ? toMinorUnits(trip.budget) : undefined);
@@ -67,14 +58,22 @@ export default function TripDetailsView({
   const remaining = budgetStats ? toMajorUnits(budgetStats.remainingMinor) : 0;
   const budget = trip.budget ?? 0;
 
-  const travelerCount = trip.travelerCount ?? trip.members.length;
-  const durationDays = trip.durationDays ?? 1;
+  const durationDays = computeDurationDays(trip) ?? 1;
+  const me = trip.members.find((m) => m.isMe);
+  const effectiveStatus = computeTripStatus(trip);
+  const myShare = me ? toMajorUnits(computeMemberShare(me.id, trip.expenses)) : 0;
 
-  // ── Sheet state ──────────────────────────────────────────────────────────
+  // ── Sheet state ─────────────────────────────────────────────────────────
   const [showOverflow, setShowOverflow] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // ── Edit mode ────────────────────────────────────────────────────────────
+  // ── Expense overflow state ──────────────────────────────────────────────
+  const [overflowExpenseId, setOverflowExpenseId] = useState<string | null>(null);
+  const [deleteExpenseId, setDeleteExpenseId] = useState<string | null>(null);
+  const overflowExpense = overflowExpenseId ? trip.expenses.find((e) => e.id === overflowExpenseId) ?? null : null;
+  const deleteExpense = deleteExpenseId ? trip.expenses.find((e) => e.id === deleteExpenseId) ?? null : null;
+
+  // ── Edit mode ───────────────────────────────────────────────────────────
   const [isEditing, setIsEditing] = useState(false);
   const [showDiscard, setShowDiscard] = useState(false);
 
@@ -90,7 +89,6 @@ export default function TripDetailsView({
   const [editBudgetStr, setEditBudgetStr] = useState(trip.budget != null && trip.budget > 0 ? String(trip.budget) : "");
   const [touchedName, setTouchedName] = useState(false);
 
-  // Sync form when trip changes (e.g. from canonical update)
   useEffect(() => {
     if (!isEditing) {
       setEditName(trip.name);
@@ -114,7 +112,7 @@ export default function TripDetailsView({
     editHasBudget !== (trip.budget != null && trip.budget > 0) ||
     (editHasBudget && editBudgetStr !== String(trip.budget ?? ""));
 
-  // ── Handlers ─────────────────────────────────────────────────────────────
+  // ── Handlers ────────────────────────────────────────────────────────────
   function enterEdit() {
     setEditName(trip.name);
     setEditStartDate(trip.startDate ?? "");
@@ -155,50 +153,37 @@ export default function TripDetailsView({
     setIsEditing(false);
   }
 
-  const inputBase = "w-full bg-white rounded-[12px] px-4 h-[44px] text-[15px] font-500 text-[#0F172A] placeholder:text-[#C9D4DF] outline-none border border-[#E1E7EF] focus:border-[#0A86A0] transition-colors";
-  const inputError = "border-[#FECACA] bg-[#FFF5F5]";
+  function canEditExpense(expense: Expense): boolean {
+    return me ? (me.id === expense.addedBy || me.role === "owner") : false;
+  }
 
   return (
-    <div className="bg-[#F8FAFC] min-h-full pb-10">
-      {/* ── 1. Hero / Cover Section ────────────────────────────────────────── */}
-      <div className="relative w-full aspect-[4/3] max-h-[380px] bg-[#0F172A] overflow-hidden">
-        {trip.coverImage ? (
-          <img
-            src={trip.coverImage}
-            alt={trip.name}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-[#0A86A0] to-[#043E4B]" />
-        )}
-
-        {/* Dark bottom gradient overlay for legibility */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/85" />
-
-        {/* Header buttons */}
-        <div className="absolute top-0 left-0 right-0 p-4 safe-top z-10 flex items-center justify-between">
-          {/* Back / Cancel */}
+    <div className="bg-[#F4F6F9] min-h-full pb-10">
+      {/* ── Header ────────────────────────────────────────────────────────── */}
+      <div className="bg-white border-b border-[#E1E7EF] safe-top shrink-0 sticky top-0 z-20">
+        <div className="flex items-center gap-1 px-2 h-[52px] max-w-[720px] mx-auto w-full">
           <button
             onClick={isEditing ? cancelEdit : onBack}
-            className="pressable w-10 h-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white border border-white/20 hover:bg-black/60 transition-colors"
-            aria-label={isEditing ? "Cancel editing" : "Go back to trips"}
+            className="pressable w-10 h-10 flex items-center justify-center rounded-full text-[#475569]"
+            aria-label={isEditing ? "Cancel editing" : "Go back"}
           >
             {isEditing ? (
-              <HugeiconsIcon icon={Cancel01Icon} size={20} color="currentColor" strokeWidth={2} />
+              <HugeiconsIcon icon={Cancel01Icon} size={22} color="currentColor" strokeWidth={1.75} />
             ) : (
-              <HugeiconsIcon icon={ArrowLeft01Icon} size={22} color="currentColor" strokeWidth={2} />
+              <HugeiconsIcon icon={ArrowLeft01Icon} size={22} color="currentColor" strokeWidth={1.75} />
             )}
           </button>
-
-          {/* Right: Save (edit mode) or Overflow (view mode) */}
+          <h1 className="flex-1 text-[16px] font-700 text-[#0F172A] truncate px-1">
+            {isEditing ? "Edit trip" : "Trip details"}
+          </h1>
           {isEditing ? (
             <button
               onClick={saveEdit}
               disabled={!canSave}
-              className={`pressable px-4 h-10 rounded-full font-700 text-[14px] transition-all ${
+              className={`pressable px-3 h-8 rounded-full text-[13px] font-700 transition-colors ${
                 canSave
-                  ? "bg-white text-[#0A86A0] hover:bg-[#EFF9FB]"
-                  : "bg-white/40 text-white/60"
+                  ? "bg-[#0A86A0] text-white hover:bg-[#087288]"
+                  : "bg-[#F1F5F9] text-[#94A3B8]"
               }`}
             >
               Save
@@ -206,377 +191,312 @@ export default function TripDetailsView({
           ) : onDeleteTrip ? (
             <button
               onClick={() => setShowOverflow(true)}
-              className="pressable w-10 h-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white border border-white/20 hover:bg-black/60 transition-colors"
-              aria-label="Trip options"
+              className="pressable w-10 h-10 flex items-center justify-center rounded-full text-[#475569]"
+              aria-label="More options"
             >
-              <IconDots size={20} />
+              <IconDotsV size={18} />
             </button>
           ) : null}
         </div>
-
-        {/* Trip Identity / Status / Dates */}
-        <div className="absolute bottom-0 left-0 right-0 p-5 z-10">
-          {isEditing ? (
-            <input
-              id={nameId}
-              type="text"
-              placeholder="Trip name"
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              onBlur={() => setTouchedName(true)}
-              className={`w-full bg-white/10 backdrop-blur-md text-[26px] font-800 text-white tracking-tight leading-tight placeholder:text-white/40 outline-none border-2 border-white/20 rounded-[12px] px-3 py-2 mb-2 ${
-                touchedName && !trimmedEditName ? "border-[#FCA5A5]" : ""
-              }`}
-              autoFocus
-            />
-          ) : (
-            <h1 className="text-[26px] font-800 text-white tracking-tight leading-tight mb-2 text-shadow-sm">
-              {trip.name}
-            </h1>
-          )}
-          <div className="flex items-center gap-2.5">
-            {trip.status === "active" && (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[12px] font-700 bg-[#E0F2FE] text-[#0284C7] shadow-sm">
-                Active
-              </span>
-            )}
-            {trip.status === "upcoming" && (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[12px] font-700 bg-[#FEF3C7] text-[#D97706] shadow-sm">
-                Upcoming
-              </span>
-            )}
-            {trip.status === "completed" && (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[12px] font-700 bg-white/20 text-white/90 backdrop-blur-sm shadow-sm">
-                Completed
-              </span>
-            )}
-            {!isEditing && (
-              <span className="text-[13px] font-500 text-white/90">
-                {trip.dates}
-              </span>
-            )}
-          </div>
-        </div>
       </div>
 
-      <div className="px-4 -mt-3 relative z-20 space-y-4 max-w-[600px] mx-auto">
-        {/* ── Edit: Dates & Budget ─────────────────────────────────────────── */}
-        {isEditing && (
-          <div className="bg-white rounded-[18px] border border-[#E2E8F0] shadow-sm p-4 space-y-4">
-            <p className="text-[13px] font-700 text-[#475569] uppercase tracking-wide">Edit details</p>
-
-            {/* Dates */}
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[13px] font-600 text-[#475569]">Trip dates</span>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 flex items-center bg-[#F8FAFC] rounded-[12px] border border-[#E1E7EF] focus-within:border-[#0A86A0] transition-colors h-[44px]">
-                  <span className="pl-3 text-[#0A86A0] shrink-0">
-                    <HugeiconsIcon icon={Calendar01Icon} size={16} color="currentColor" strokeWidth={1.75} />
-                  </span>
+      {/* ── Content ───────────────────────────────────────────────────────── */}
+      <div className="px-4 pt-4 space-y-3 max-w-[600px] mx-auto">
+        {/* ── Trip Summary Card ────────────────────────────────────────────── */}
+        <div className="bg-white rounded-[16px] border border-[#E1E7EF] p-4">
+          {isEditing ? (
+            <div className="space-y-3">
+              <div>
+                <label htmlFor={nameId} className="text-[12px] font-600 text-[#475569] block mb-1">Trip name</label>
+                <input
+                  id={nameId}
+                  type="text"
+                  placeholder="Trip name"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  onBlur={() => setTouchedName(true)}
+                  className={`w-full bg-[#F8FAFC] rounded-[10px] px-3 h-10 text-[14px] font-500 text-[#0F172A] placeholder:text-[#94A3B8] outline-none border transition-colors ${
+                    touchedName && !trimmedEditName ? "border-[#FECACA]" : "border-[#E1E7EF] focus:border-[#0A86A0]"
+                  }`}
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label htmlFor={startDateId} className="text-[12px] font-600 text-[#475569] block mb-1">Start</label>
                   <input
                     id={startDateId}
                     type="date"
                     value={editStartDate}
                     onChange={(e) => setEditStartDate(e.target.value)}
-                    className="flex-1 bg-transparent pl-2 pr-2 h-full text-[13px] font-500 text-[#0F172A] placeholder:text-[#C9D4DF] outline-none min-w-0"
-                    aria-label="Start date"
+                    className="w-full bg-[#F8FAFC] rounded-[10px] px-3 h-10 text-[13px] font-500 text-[#0F172A] outline-none border border-[#E1E7EF] focus:border-[#0A86A0] transition-colors"
                   />
                 </div>
-                <span className="text-[#94A3B8] shrink-0">
-                  <HugeiconsIcon icon={ArrowRight01Icon} size={16} color="currentColor" strokeWidth={1.75} />
-                </span>
-                <div className="flex-1 flex items-center bg-[#F8FAFC] rounded-[12px] border border-[#E1E7EF] focus-within:border-[#0A86A0] transition-colors h-[44px]">
-                  <span className="pl-3 text-[#0A86A0] shrink-0">
-                    <HugeiconsIcon icon={Calendar01Icon} size={16} color="currentColor" strokeWidth={1.75} />
-                  </span>
+                <div className="flex-1">
+                  <label htmlFor={endDateId} className="text-[12px] font-600 text-[#475569] block mb-1">End</label>
                   <input
                     id={endDateId}
                     type="date"
                     value={editEndDate}
                     onChange={(e) => setEditEndDate(e.target.value)}
-                    className="flex-1 bg-transparent pl-2 pr-2 h-full text-[13px] font-500 text-[#0F172A] placeholder:text-[#C9D4DF] outline-none min-w-0"
-                    aria-label="End date"
+                    className="w-full bg-[#F8FAFC] rounded-[10px] px-3 h-10 text-[13px] font-500 text-[#0F172A] outline-none border border-[#E1E7EF] focus:border-[#0A86A0] transition-colors"
                   />
                 </div>
               </div>
-            </div>
-
-            {/* Spending style */}
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[13px] font-600 text-[#475569]">Spending style</span>
-              <div className="flex bg-[#F8FAFC] rounded-[12px] p-1 border border-[#E1E7EF]">
-                <button
-                  type="button"
-                  onClick={() => setEditHasBudget(false)}
-                  className={`flex-1 h-[38px] rounded-[10px] text-[13px] font-600 transition-all ${
-                    !editHasBudget
-                      ? "bg-[#EFF9FB] text-[#0A86A0] border border-[#A3DFE9]"
-                      : "text-[#64748B] hover:text-[#475569]"
-                  }`}
-                  aria-pressed={!editHasBudget}
-                >
-                  Pay as you go
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditHasBudget(true)}
-                  className={`flex-1 h-[38px] rounded-[10px] text-[13px] font-600 transition-all ${
-                    editHasBudget
-                      ? "bg-[#EFF9FB] text-[#0A86A0] border border-[#A3DFE9]"
-                      : "text-[#64748B] hover:text-[#475569]"
-                  }`}
-                  aria-pressed={editHasBudget}
-                >
-                  Set a budget
-                </button>
-              </div>
-            </div>
-
-            {/* Budget amount */}
-            {editHasBudget && (
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor={budgetId} className="text-[13px] font-600 text-[#475569]">Trip budget</label>
-                <div className={`flex items-center bg-[#F8FAFC] rounded-[12px] border transition-colors h-[44px] ${editBudgetStr !== "" && !editBudgetValid ? inputError : "border-[#E1E7EF] focus-within:border-[#0A86A0]"}`}>
-                  <span className="pl-4 text-[16px] font-600 text-[#94A3B8] shrink-0 select-none">৳</span>
-                  <input
-                    id={budgetId}
-                    type="number"
-                    inputMode="decimal"
-                    placeholder="50,000"
-                    value={editBudgetStr}
-                    onChange={(e) => setEditBudgetStr(e.target.value.replace(/[^\d]/g, ""))}
-                    className="flex-1 bg-transparent pl-1.5 pr-2 h-full text-[14px] font-500 text-[#0F172A] placeholder:text-[#C9D4DF] outline-none num"
-                  />
+              <div>
+                <span className="text-[12px] font-600 text-[#475569] block mb-1">Budget</span>
+                <div className="flex bg-[#F8FAFC] rounded-[10px] p-0.5 border border-[#E1E7EF]">
+                  <button
+                    type="button"
+                    onClick={() => setEditHasBudget(false)}
+                    className={`flex-1 h-9 rounded-[8px] text-[13px] font-600 transition-colors ${
+                      !editHasBudget
+                        ? "bg-white text-[#0A86A0] shadow-sm border border-[#E1E7EF]"
+                        : "text-[#64748B] hover:text-[#475569]"
+                    }`}
+                    aria-pressed={!editHasBudget}
+                  >
+                    Pay as you go
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditHasBudget(true)}
+                    className={`flex-1 h-9 rounded-[8px] text-[13px] font-600 transition-colors ${
+                      editHasBudget
+                        ? "bg-white text-[#0A86A0] shadow-sm border border-[#E1E7EF]"
+                        : "text-[#64748B] hover:text-[#475569]"
+                    }`}
+                    aria-pressed={editHasBudget}
+                  >
+                    Set budget
+                  </button>
                 </div>
-                {editBudgetStr !== "" && !editBudgetValid && (
-                  <p className="text-[12px] font-500 text-[#DC2626] flex items-center gap-1">
-                    <HugeiconsIcon icon={AlertCircleIcon} size={12} color="currentColor" strokeWidth={2.5} />
-                    Budget must be greater than 0.
-                  </p>
-                )}
               </div>
-            )}
-          </div>
-        )}
-
-        {/* ── 2. Summary Stats Card ─────────────────────────────────────────── */}
-        <div className="bg-white rounded-[18px] border border-[#E2E8F0] shadow-sm py-3.5 px-3 flex items-center divide-x divide-[#F1F5F9]">
-          {/* Travelers */}
-          <div className="flex-1 flex flex-col items-center justify-center text-center px-2">
-            <span className="text-[#0A86A0] mb-1">
-              <HugeiconsIcon icon={UserGroupIcon} size={20} strokeWidth={1.75} />
-            </span>
-            <span className="text-[14px] font-700 text-[#0F172A] leading-tight">
-              {travelerCount} Travelers
-            </span>
-          </div>
-
-          {/* Days */}
-          <div className="flex-1 flex flex-col items-center justify-center text-center px-2">
-            <span className="text-[#0A86A0] mb-1">
-              <HugeiconsIcon icon={Calendar01Icon} size={20} strokeWidth={1.75} />
-            </span>
-            <span className="text-[14px] font-700 text-[#0F172A] leading-tight">
-              {durationDays} Days
-            </span>
-          </div>
-
-          {/* Total Spent */}
-          <div className="flex-1 flex flex-col items-center justify-center text-center px-2">
-            <span className="text-[#0A86A0] mb-1">
-              <HugeiconsIcon icon={Money01Icon} size={20} strokeWidth={1.75} />
-            </span>
-            <span className="text-[14px] font-700 text-[#0F172A] leading-tight">
-              {fmt(totalSpent)} Spent
-            </span>
-          </div>
-        </div>
-
-        {!isEditing && onGoHome && (
-          <button
-            onClick={onGoHome}
-            className="pressable w-full bg-white rounded-[18px] border border-[#E2E8F0] shadow-sm px-4 py-3.5 flex items-center justify-between"
-          >
-            <div>
-              <p className="text-[14px] font-700 text-[#0A86A0]">Enter trip</p>
-              <p className="text-[12px] text-[#94A3B8] mt-0.5">View expenses, balances, and members</p>
-            </div>
-            <span className="text-[#94A3B8]">
-              <HugeiconsIcon icon={ArrowRight01Icon} size={18} color="currentColor" strokeWidth={1.75} />
-            </span>
-          </button>
-        )}
-
-        {/* ── 3. Trip Spending / Budget Card ─────────────────────────────────── */}
-        <div className="bg-white rounded-[18px] border border-[#E2E8F0] shadow-sm p-4">
-          {hasBudget ? (
-            <div>
-              <div className="flex items-center justify-between mb-2.5">
-                <span className="text-[14px] font-600 text-[#64748B]">
-                  Trip spending
-                </span>
-                <span className="text-[14px] font-700 text-[#0F172A]">
-                  {fmt(totalSpent)} of {fmt(budget)}
-                </span>
-              </div>
-
-              {/* Progress bar */}
-              <div className="w-full h-2.5 bg-[#E2E8F0] rounded-full overflow-hidden mb-2">
-                <div
-                  className="h-full bg-[#0A86A0] rounded-full transition-all duration-300"
-                  style={{ width: `${spentPct}%` }}
-                />
-              </div>
-
-              <div className="flex items-center justify-between text-[12px] font-500 text-[#94A3B8]">
-                <span>{spentPct}% spent</span>
-                <span>{fmt(remaining)} remaining</span>
-              </div>
+              {editHasBudget && (
+                <div>
+                  <label htmlFor={budgetId} className="text-[12px] font-600 text-[#475569] block mb-1">Amount</label>
+                  <div className={`flex items-center bg-[#F8FAFC] rounded-[10px] border transition-colors h-10 ${editBudgetStr !== "" && !editBudgetValid ? "border-[#FECACA] bg-[#FFF5F5]" : "border-[#E1E7EF] focus-within:border-[#0A86A0]"}`}>
+                    <span className="pl-3 text-[14px] font-600 text-[#94A3B8] shrink-0 select-none">৳</span>
+                    <input
+                      id={budgetId}
+                      type="number"
+                      inputMode="decimal"
+                      placeholder="0"
+                      value={editBudgetStr}
+                      onChange={(e) => setEditBudgetStr(e.target.value.replace(/[^\d]/g, ""))}
+                      className="flex-1 bg-transparent pl-1 pr-3 h-full text-[14px] font-500 text-[#0F172A] placeholder:text-[#C9D4DF] outline-none num"
+                    />
+                  </div>
+                  {editBudgetStr !== "" && !editBudgetValid && (
+                    <p className="text-[11px] font-500 text-[#DC2626] mt-1 flex items-center gap-1">
+                      <HugeiconsIcon icon={AlertCircleIcon} size={11} color="currentColor" strokeWidth={2.5} />
+                      Must be greater than 0
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[14px] font-600 text-[#64748B]">
-                  Trip spending
-                </span>
-                <span className="text-[18px] font-800 text-[#0F172A]">
-                  {fmt(totalSpent)}
-                </span>
+            <>
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="min-w-0">
+                  <h2 className="text-[16px] font-700 text-[#0F172A] leading-snug truncate">{trip.name}</h2>
+                </div>
+                {effectiveStatus === "active" && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-700 bg-[#ECFDF5] text-[#065F46] shrink-0">
+                    Active
+                  </span>
+                )}
+                {effectiveStatus === "upcoming" && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-700 bg-[#FFFBEB] text-[#B45309] shrink-0">
+                    Upcoming
+                  </span>
+                )}
+                {effectiveStatus === "completed" && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-700 bg-[#F1F5F9] text-[#64748B] shrink-0">
+                    Completed
+                  </span>
+                )}
               </div>
-              <p className="text-[12px] font-500 text-[#94A3B8]">
-                Pay as you go
-              </p>
-            </div>
+              <div className="flex items-center gap-0 divide-x divide-[#F1F5F9]">
+                <div className="flex-1 flex flex-col items-center text-center px-2">
+                  <span className="text-[16px] font-800 text-[#0F172A] leading-tight num">{durationDays}</span>
+                  <span className="text-[11px] font-500 text-[#94A3B8] mt-0.5">{durationDays === 1 ? "Day" : "Days"}</span>
+                </div>
+                <div className="flex-1 flex flex-col items-center text-center px-2">
+                  <span className="text-[16px] font-800 text-[#0F172A] leading-tight num">{fmt(totalSpent)}</span>
+                  <span className="text-[11px] font-500 text-[#94A3B8] mt-0.5">Spent</span>
+                </div>
+                <div className="flex-1 flex flex-col items-center text-center px-2">
+                  <span className="text-[16px] font-800 text-[#0F172A] leading-tight num">{fmt(myShare)}</span>
+                  <span className="text-[11px] font-500 text-[#94A3B8] mt-0.5">My share</span>
+                </div>
+              </div>
+              {hasBudget && (
+                <div className="mt-3 pt-3 border-t border-[#F1F5F9]">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[12px] font-500 text-[#64748B]">
+                      {fmt(totalSpent)} of {fmt(budget)}
+                    </span>
+                    <span className="text-[12px] font-700 text-[#0F172A] num">{spentPct}%</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-[#F1F5F9] rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-[#0A86A0] rounded-full transition-all duration-300"
+                      style={{ width: `${spentPct}%` }}
+                    />
+                  </div>
+                  <p className="text-[11px] font-500 text-[#94A3B8] mt-1.5">
+                    {fmt(remaining)} remaining
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </div>
 
-        {/* ── 4. Members Section ────────────────────────────────────────────── */}
+        {/* ── Members ────────────────────────────────────────────────────────── */}
         {!isEditing && (
           <div>
-            <div className="flex items-center justify-between mb-3 px-1">
-              <button onClick={onViewMembers} className="pressable">
-                <span className="text-[16px] font-700 text-[#0F172A]">
-                  Members ({trip.members.length})
-                </span>
-              </button>
-              {trip.status !== "completed" && (
+            <div className="flex items-center justify-between mb-2 px-1">
+              <h3 className="text-[14px] font-700 text-[#0F172A]">
+                Members · {trip.members.length}
+              </h3>
+              {effectiveStatus !== "completed" && (
                 <button
                   onClick={onInvite}
-                  className="pressable inline-flex items-center gap-1 text-[13px] font-700 text-[#0A86A0] hover:text-[#087288]"
+                  className="pressable inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] font-700 text-[#0A86A0] bg-[#EFF9FB] border border-[#A3DFE9] hover:bg-[#D4F0F5] transition-colors"
                 >
-                  <span>Invite</span>
-                  <span className="text-[15px] font-700 leading-none">+</span>
+                  <span>+ Invite</span>
                 </button>
               )}
             </div>
-
-            <div className="bg-white rounded-[18px] border border-[#E2E8F0] shadow-sm p-4">
-              <div className="flex items-center gap-4 overflow-x-auto no-scrollbar py-1">
-                {trip.members.map((member) => (
-                  <button
-                    key={member.id}
-                    onClick={() => onTapMember?.(member.id, member)}
-                    className="pressable flex flex-col items-center shrink-0 w-[58px] text-center"
-                  >
-                    <div className="relative mb-1.5">
-                      <Avatar
-                        member={{
-                          initials: member.initials,
-                          color: member.color,
-                        }}
-                        size={44}
-                      />
-                      {member.role === "guest" && (
-                        <span className="absolute -bottom-1 -right-1 px-1 rounded bg-[#F1F5F9] text-[#64748B] text-[9px] font-600 border border-[#E2E8F0]">
-                          G
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-[12px] font-600 text-[#0F172A] truncate w-full leading-tight">
-                      {member.name}
-                    </span>
-                  </button>
-                ))}
+            <div className="bg-white rounded-[16px] border border-[#E1E7EF] p-3">
+              <div className="relative">
+                <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-1 -mb-1">
+                  {trip.members.map((member) => (
+                    <button
+                      key={member.id}
+                      onClick={() => onTapMember?.(member.id, member)}
+                      className="pressable flex flex-col items-center shrink-0 w-[56px] text-center"
+                    >
+                      <div className="relative mb-1.5">
+                        <Avatar
+                          member={{
+                            initials: member.initials,
+                            color: member.color,
+                          }}
+                          size={42}
+                        />
+                        {member.role === "guest" && (
+                          <span className="absolute -bottom-0.5 -right-0.5 px-0.5 rounded bg-[#F1F5F9] text-[#64748B] text-[8px] font-600 border border-[#E2E8F0] leading-tight">
+                            G
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] font-500 text-[#475569] truncate w-full leading-tight">
+                        {member.name}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <div className="absolute right-0 top-0 bottom-1 w-8 bg-gradient-to-l from-[#F4F6F9] to-transparent pointer-events-none" />
               </div>
             </div>
           </div>
         )}
 
-        {/* ── 5. Expenses Preview Section ───────────────────────────────────── */}
+        {/* ── Expenses ──────────────────────────────────────────────────────── */}
         {!isEditing && (
           <div>
-            <div className="flex items-center justify-between mb-3 px-1">
-              <h2 className="text-[16px] font-700 text-[#0F172A]">Expenses</h2>
+            <div className="flex items-center justify-between mb-2 px-1">
+              <h3 className="text-[14px] font-700 text-[#0F172A]">Expenses</h3>
               {trip.expenses.length > 0 && (
                 <button
                   onClick={() => onSeeAllExpenses?.(trip.id)}
-                  className="pressable text-[13px] font-700 text-[#0A86A0] hover:text-[#087288]"
+                  className="pressable text-[13px] font-600 text-[#0A86A0] hover:text-[#087288]"
                 >
                   See all
                 </button>
               )}
             </div>
 
-            {trip.expenses.length === 0 ? (
-              <div className="bg-white rounded-[18px] border border-[#E2E8F0] shadow-sm p-6 text-center">
-                <p className="text-[14px] font-600 text-[#0F172A] mb-1">
-                  No expenses yet
-                </p>
-                <p className="text-[13px] text-[#94A3B8]">
-                  Expenses added to this trip will appear here.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2.5">
-                {trip.expenses.slice(0, 4).map((expense) => {
-                  const cat = getCategoryMeta(expense.category);
-                  const payer = trip.members.find((m) => m.id === expense.paidBy);
-                  const payerLabel = payer?.isMe
-                    ? "You paid"
-                    : payer
-                    ? `${payer.name.replace(/ \(You\)/g, "")} paid`
-                    : "Paid";
+            <div className="bg-white rounded-[16px] border border-[#E1E7EF] p-4">
+              {trip.expenses.length === 0 ? (
+                <div className="py-4 text-center">
+                  <p className="text-[13px] font-600 text-[#475569]">No expenses yet</p>
+                  <p className="text-[12px] text-[#94A3B8] mt-0.5">Expenses added to this trip will appear here.</p>
+                </div>
+              ) : (
+                <div className="space-y-0 divide-y divide-[#F4F6F9]">
+                  {trip.expenses.slice(0, 4).map((expense) => {
+                    const cat = getCategoryMeta(expense.category);
+                    const payer = trip.members.find((m) => m.id === expense.paidBy);
+                    const payerLabel = payer?.isMe
+                      ? "You"
+                      : payer
+                      ? payer.name.replace(/ \(You\)/g, "")
+                      : "Unknown";
+                    const canManage = canEditExpense(expense);
 
-                  return (
-                    <button
-                      key={expense.id}
-                      onClick={() => onTapExpense?.(expense.id, expense)}
-                      className="pressable w-full text-left bg-white rounded-[18px] border border-[#E2E8F0] shadow-sm px-4 py-3.5 flex items-center gap-3.5 hover:border-[#CBD5E1] transition-colors"
-                    >
-                      {/* Category Icon */}
+                    return (
                       <div
-                        className="w-10 h-10 rounded-[12px] flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: cat.bg, color: cat.fg }}
+                        key={expense.id}
+                        className="flex items-start gap-3 py-3 first:pt-0 last:pb-0"
                       >
-                        <div className="scale-110">{cat.icon}</div>
-                      </div>
+                        {/* Category Icon */}
+                        <div
+                          className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0 mt-0.5"
+                          style={{ backgroundColor: cat.bg, color: cat.fg }}
+                        >
+                          {cat.icon}
+                        </div>
 
-                      {/* Description and metadata */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-700 text-[#0F172A] leading-snug truncate">
-                          {expense.title}
-                        </p>
-                        <p className="text-[12px] text-[#94A3B8] font-500 mt-0.5 truncate">
-                          {expense.date} · {cat.label} · {payerLabel}
-                        </p>
-                      </div>
+                        {/* Content */}
+                        <button
+                          onClick={() => onTapExpense?.(expense.id, expense)}
+                          className="pressable flex-1 min-w-0 text-left"
+                        >
+                          <p className="text-[14px] font-600 text-[#0F172A] truncate leading-snug">
+                            {expense.title}
+                          </p>
+                          <p className="text-[12px] text-[#94A3B8] font-500 mt-0.5 leading-snug">
+                            {cat.label} · {expense.date}
+                          </p>
+                          <p className="text-[12px] text-[#94A3B8] font-500 mt-0.5 leading-snug">
+                            Paid by {payerLabel}
+                          </p>
+                        </button>
 
-                      {/* Amount */}
-                      <div className="text-right shrink-0">
-                        <span className="num text-[15px] font-700 text-[#0F172A]">
-                          {fmt(expense.amount)}
-                        </span>
+                        {/* Amount + Overflow */}
+                        <div className="flex items-start gap-1 shrink-0">
+                          <span className="num text-[14px] font-700 text-[#0F172A] mt-0.5">
+                            {fmt(expense.amount)}
+                          </span>
+                          {canManage && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOverflowExpenseId(expense.id);
+                              }}
+                              className="pressable w-7 h-7 flex items-center justify-center rounded-full text-[#94A3B8] hover:bg-[#F4F6F9] hover:text-[#475569] transition-colors -mr-1"
+                              aria-label="Expense options"
+                            >
+                              <IconDots size={16} />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
 
-      {/* ── Sheets ──────────────────────────────────────────────────────────── */}
+      {/* ── Trip Overflow Sheet ────────────────────────────────────────────── */}
       {showOverflow && (
         <TripOverflowSheet
           onEdit={enterEdit}
@@ -585,6 +505,7 @@ export default function TripDetailsView({
         />
       )}
 
+      {/* ── Trip Delete Confirmation ───────────────────────────────────────── */}
       {showDeleteConfirm && (
         <DeleteTripSheet
           trip={trip}
@@ -593,6 +514,35 @@ export default function TripDetailsView({
         />
       )}
 
+      {/* ── Expense Overflow Sheet ─────────────────────────────────────────── */}
+      {overflowExpense && (
+        <ExpenseOverflowSheet
+          canEdit={canEditExpense(overflowExpense)}
+          onEdit={() => {
+            setOverflowExpenseId(null);
+            onEditExpense?.(overflowExpense);
+          }}
+          onDelete={() => {
+            setOverflowExpenseId(null);
+            setDeleteExpenseId(overflowExpense.id);
+          }}
+          onClose={() => setOverflowExpenseId(null)}
+        />
+      )}
+
+      {/* ── Expense Delete Confirmation ────────────────────────────────────── */}
+      {deleteExpense && (
+        <DeleteExpenseSheet
+          expense={deleteExpense}
+          onConfirm={() => {
+            setDeleteExpenseId(null);
+            onDeleteExpense?.(deleteExpense.id);
+          }}
+          onClose={() => setDeleteExpenseId(null)}
+        />
+      )}
+
+      {/* ── Discard Changes Sheet ──────────────────────────────────────────── */}
       {showDiscard && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
           <div className="absolute inset-0 bg-black/30" onClick={() => setShowDiscard(false)} style={{ animation: "fadeIn 150ms ease" }} />

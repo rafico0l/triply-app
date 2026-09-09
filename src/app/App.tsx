@@ -1119,36 +1119,6 @@ function AuthenticatedApp({
         />
       )}
 
-      {/* ── Expense Details ────────────────────────────────────────────────── */}
-      {activeExpense && (
-        <ExpenseDetails
-          expense={activeExpense}
-          members={currentMembers}
-          onBack={() => setSubScreen(null)}
-          onEdit={() => {
-            setSubScreen(null);
-            setEditingExpense(activeExpense);
-          }}
-          onDelete={() => handleDeleteExpense(activeExpense.id)}
-        />
-      )}
-
-      {/* ── Member Details ─────────────────────────────────────────────────── */}
-      {activeMember && (
-        <MemberDetails
-          member={activeMember}
-          allMembers={currentMembers}
-          allExpenses={currentExpenses}
-          recordedSettlements={currentSettlements}
-          me={me}
-          isCurrentUserOwner={me?.role === "owner"}
-          onBack={() => setSubScreen(null)}
-          onSetMembers={(next) => updateCurrentTrip((t) => ({ ...t, members: next }))}
-          onRemove={() => handleRemoveMember(activeMember.id)}
-          onRenameMember={handleRenameMember}
-        />
-      )}
-
       {/* ── Settlement History ─────────────────────────────────────────────── */}
       {subScreen?.type === "settlement-history" && (
         <SettlementHistoryView
@@ -1221,17 +1191,53 @@ function AuthenticatedApp({
                 setTripDetailId(null);
                 setTab("expenses");
               }}
+              onTapExpense={(id) => setSubScreen({ type: "expense-detail", id })}
               onViewMembers={() => setSubScreen({ type: "members" })}
-              onTapMember={() => setSubScreen({ type: "members" })}
+              onTapMember={(id) => setSubScreen({ type: "member-detail", id })}
               onInvite={() => {
                 setTripDetailId(null);
                 setInviteTrip(currentTrip);
               }}
               onSaveTrip={handleSaveTrip}
               onDeleteTrip={handleDeleteTrip}
+              onEditExpense={(expense) => {
+                setTripDetailId(null);
+                setEditingExpense(expense);
+              }}
+              onDeleteExpense={handleDeleteExpense}
               onGoHome={() => { setTripDetailId(null); setTab("home"); }}
             />
         </div>
+      )}
+
+      {/* ── Expense Details (rendered after Trip Details to stack above) ──── */}
+      {activeExpense && (
+        <ExpenseDetails
+          expense={activeExpense}
+          members={currentMembers}
+          onBack={() => setSubScreen(null)}
+          onEdit={() => {
+            setSubScreen(null);
+            setEditingExpense(activeExpense);
+          }}
+          onDelete={() => handleDeleteExpense(activeExpense.id)}
+        />
+      )}
+
+      {/* ── Member Details (rendered last to stack above Trip Details) ─────── */}
+      {activeMember && (
+        <MemberDetails
+          member={activeMember}
+          allMembers={currentMembers}
+          allExpenses={currentExpenses}
+          recordedSettlements={currentSettlements}
+          me={me}
+          isCurrentUserOwner={me?.role === "owner"}
+          onBack={() => setSubScreen(null)}
+          onSetMembers={(next) => updateCurrentTrip((t) => ({ ...t, members: next }))}
+          onRemove={() => handleRemoveMember(activeMember.id)}
+          onRenameMember={handleRenameMember}
+        />
       )}
     </div>
   );

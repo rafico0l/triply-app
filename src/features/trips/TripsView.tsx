@@ -3,6 +3,7 @@ import { ArrowLeft01Icon, PlusIcon, MapIcon } from "@hugeicons/core-free-icons";
 import TripCard, { type Tour } from "./components/TripCard";
 import { computeTotalSpent, toMajorUnits } from "../../domain/finance";
 import type { Trip } from "../../domain/trip";
+import { computeTripStatus } from "../../domain/trip";
 import EmptyState from "../../components/shared/EmptyState";
 
 // ─── Section Label ────────────────────────────────────────────────────────────
@@ -29,9 +30,9 @@ export default function TripsView({
   onJoinTour?: () => void;
   currentTripId?: string;
 }) {
-  const currentTour = trips.find((t) => t.id === currentTripId);
-  const upcomingTours = trips.filter((t) => t.status === "upcoming" || (t.status === "active" && t.id !== currentTripId));
-  const pastTours = trips.filter((t) => t.status === "completed");
+  const activeTours = trips.filter((t) => computeTripStatus(t) === "active");
+  const upcomingTours = trips.filter((t) => computeTripStatus(t) === "upcoming");
+  const pastTours = trips.filter((t) => computeTripStatus(t) === "completed");
 
   const toDisplayTour = (trip: Trip): Tour => ({
     id: trip.id,
@@ -40,7 +41,7 @@ export default function TripsView({
     dates: trip.dates,
     members: trip.members.length,
     spent: toMajorUnits(computeTotalSpent(trip.expenses)),
-    status: trip.status,
+    status: computeTripStatus(trip),
     coverImage: trip.coverImage,
   });
 
@@ -98,16 +99,18 @@ export default function TripsView({
       ) : (
         <div className="px-4 pt-4 space-y-6 max-w-[600px] mx-auto w-full">
           {/* CURRENT TRIP */}
-          {currentTour && (
+          {activeTours.length > 0 && (
             <section>
               <SectionLabel>CURRENT TRIP</SectionLabel>
               <div className="space-y-2.5">
-                <TripCard
-                  key={currentTour.id}
-                  tour={toDisplayTour(currentTour)}
-                  onSelect={onSelectTour}
-                  isCurrent
-                />
+                {activeTours.map((tour) => (
+                  <TripCard
+                    key={tour.id}
+                    tour={toDisplayTour(tour)}
+                    onSelect={onSelectTour}
+                    isCurrent
+                  />
+                ))}
               </div>
             </section>
           )}
