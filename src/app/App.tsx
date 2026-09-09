@@ -303,6 +303,10 @@ export default function App() {
       setIsAuthenticated(!!user);
       setAuthLoading(false);
 
+      if (urlToken && mounted && !user) {
+        localStorage.setItem("triply_pending_join_token", urlToken);
+      }
+
       if (user) {
         try {
           await ensureCurrentUserProfile();
