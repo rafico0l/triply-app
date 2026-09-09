@@ -7,18 +7,12 @@ export default function RecentExpenses({ expenses, members, onViewAll, empty = f
   if (empty) {
     return (
       <section className="px-4 pb-1">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-2">
           <h2 className="text-[14px] font-700 text-[#0F172A]">Recent expenses</h2>
         </div>
-        <div className="bg-white rounded-[16px] border border-[#E1E7EF] px-5 py-6 flex flex-col items-center text-center gap-3">
-          <div>
-            <p className="text-[14px] font-700 text-[#0F172A] mb-1">No expenses yet</p>
-            <p className="text-[13px] text-[#94A3B8] font-500 leading-relaxed max-w-[220px]">Add your first expense to start tracking the trip.</p>
-          </div>
-          <button onClick={onAddExpense} className="pressable flex items-center gap-1.5 px-4 h-9 rounded-full bg-[#0A86A0] text-white font-700 text-[13px] shadow-[0_2px_8px_rgba(10,134,160,0.18)]">
-            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
-            Add expense
-          </button>
+        <div className="bg-white rounded-[14px] border border-[#E1E7EF] px-4 py-4 text-center">
+          <p className="text-[13px] font-600 text-[#64748B]">No expenses yet</p>
+          <p className="text-[12px] text-[#94A3B8] font-500 mt-1">Your first expense will appear here.</p>
         </div>
       </section>
     );

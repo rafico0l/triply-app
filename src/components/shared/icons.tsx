@@ -27,6 +27,9 @@ import {
   InformationCircleIcon,
   Home03Icon,
   Settings01Icon,
+  LockIcon,
+  EyeIcon,
+  EyeOffIcon,
 } from "@hugeicons/core-free-icons";
 
 export function IconReceipt({ size = 22 }: { size?: number }) {
@@ -135,4 +138,16 @@ export function IconHome({ size = 22 }: { size?: number }) {
 
 export function IconSettings({ size = 22 }: { size?: number }) {
   return <HugeiconsIcon icon={Settings01Icon} size={size} color="currentColor" strokeWidth={1.75} />;
+}
+
+export function IconLock({ size = 16 }: { size?: number }) {
+  return <HugeiconsIcon icon={LockIcon} size={size} color="currentColor" strokeWidth={1.75} />;
+}
+
+export function IconEye({ size = 17 }: { size?: number }) {
+  return <HugeiconsIcon icon={EyeIcon} size={size} color="currentColor" strokeWidth={1.75} />;
+}
+
+export function IconEyeOff({ size = 17 }: { size?: number }) {
+  return <HugeiconsIcon icon={EyeOffIcon} size={size} color="currentColor" strokeWidth={1.75} />;
 }

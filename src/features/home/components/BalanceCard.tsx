@@ -2,7 +2,7 @@ import type { Expense, Member } from "../../../domain/types";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { MapIcon, Add01Icon, AiSwapIcon, PlusIcon } from "@hugeicons/core-free-icons";
 import { fmt } from "../../../lib/format";
-import { computeTotalSpent, computeBudgetStats, toMajorUnits, toMinorUnits } from "../../../domain/finance";
+import { computeTotalSpent, computeBudgetStats, computeMemberShare, toMajorUnits, toMinorUnits } from "../../../domain/finance";
 import EmptyState from "../../../components/shared/EmptyState";
 
 function tripsHaveNoData(expenses: Expense[], members: Member[]): boolean {
@@ -81,9 +81,11 @@ export default function BalanceCard({
   }
 
   if (tripNoExpenses) {
+    const myShare = me ? toMajorUnits(computeMemberShare(me.id, expenses)) : 0;
     return (
       <section className="px-4 pt-3 pb-1">
         <div className="bg-white rounded-[20px] border border-[#E1E7EF] overflow-hidden">
+          {/* Trip context */}
           <div className="px-5 pt-4 pb-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-[12px] bg-[#EFF9FB] flex items-center justify-center text-[#0A86A0] shrink-0">
@@ -97,21 +99,35 @@ export default function BalanceCard({
               </div>
             </div>
           </div>
-          <div className="px-5 pb-5 pt-2">
-            <EmptyState
-              icon={<HugeiconsIcon icon={Add01Icon} size={28} color="currentColor" strokeWidth={1.5} />}
-              title="No expenses yet"
-              body="Start tracking by adding your first expense."
-              action={
-                <button
-                  onClick={onAddExpense}
-                  className="pressable flex items-center justify-center gap-1.5 px-5 h-11 rounded-[12px] bg-[#0A86A0] text-white font-700 text-[14px] shadow-[0_2px_8px_rgba(10,134,160,0.18)]"
-                >
-                  <HugeiconsIcon icon={PlusIcon} size={16} color="currentColor" strokeWidth={2.5} />
-                  Add expense
-                </button>
-              }
-            />
+
+          {/* Financial overview */}
+          <div className="px-5 pt-3 pb-4">
+            <p className="text-[12px] font-600 text-[#94A3B8] mb-1">Total spent</p>
+            <p className="num text-[30px] font-800 text-[#0F172A] leading-tight">৳0</p>
+            <div className="flex items-center gap-5 mt-3">
+              <div>
+                <p className="text-[11px] font-600 text-[#94A3B8] mb-0.5">Your share</p>
+                <p className="num text-[15px] font-700 text-[#0F172A]">৳0</p>
+              </div>
+              <div className="h-[24px] w-px bg-[#E1E7EF]" />
+              <div>
+                <p className="text-[11px] font-600 text-[#94A3B8] mb-0.5">Your balance</p>
+                <p className={`num text-[15px] font-700 ${balanceZero ? "text-[#94A3B8]" : balancePositive ? "text-[#15803D]" : "text-[#DC2626]"}`}>
+                  {balanceZero ? "৳0" : balancePositive ? `+${fmt(myBalance)}` : `-${fmt(myBalance)}`}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="px-5 pb-4">
+            <button
+              onClick={onAddExpense}
+              className="pressable inline-flex items-center gap-1.5 px-4 h-9 rounded-[10px] bg-[#0A86A0] text-white font-700 text-[13px] shadow-[0_2px_8px_rgba(10,134,160,0.18)] active:scale-[0.97] transition-all"
+            >
+              <HugeiconsIcon icon={PlusIcon} size={14} color="currentColor" strokeWidth={2.5} />
+              Add expense
+            </button>
           </div>
         </div>
       </section>
@@ -147,12 +163,10 @@ export default function BalanceCard({
 
         {/* Balance */}
         <div className="px-5 pt-4 pb-3">
-          <p className="text-[11px] font-600 text-[#94A3B8] uppercase tracking-wide mb-1.5">
-            Your balance
-          </p>
+          <p className="text-[12px] font-600 text-[#94A3B8] mb-1.5">Your balance</p>
           <div className="flex items-baseline justify-between">
             <span
-              className={`num text-[32px] font-800 leading-none ${
+              className={`num text-[30px] font-800 leading-tight ${
                 balanceZero
                   ? "text-[#94A3B8]"
                   : balancePositive
@@ -180,16 +194,11 @@ export default function BalanceCard({
           </div>
         </div>
 
-        {/* Divider */}
-        <div className="px-5 border-b border-[#F1F5F9]" />
-
         {/* Trip spending */}
-        <div className="px-5 py-3.5">
+        <div className="px-5 py-3">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] font-600 text-[#94A3B8] uppercase tracking-wide">
-              Trip spent
-            </p>
-            <span className="num text-[12px] font-600 text-[#475569]">
+            <p className="text-[12px] font-600 text-[#94A3B8]">Total spent</p>
+            <span className="num text-[13px] font-700 text-[#0F172A]">
               {hasBudget ? `${fmt(total)} of ${fmt(budget ?? 0)}` : fmt(total)}
             </span>
           </div>

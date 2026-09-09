@@ -20,16 +20,18 @@ export default function TripsView({
   onBack,
   onSelectTour,
   onJoinTour,
+  currentTripId,
 }: {
   trips: Trip[];
   onNewTour: () => void;
   onBack?: () => void;
   onSelectTour?: (id: string) => void;
   onJoinTour?: () => void;
+  currentTripId?: string;
 }) {
-  const activeTours = trips.filter((t) => t.status === "active");
-  const upcomingTours = trips.filter((t) => t.status === "upcoming");
-  const completedTours = trips.filter((t) => t.status === "completed");
+  const currentTour = trips.find((t) => t.id === currentTripId);
+  const upcomingTours = trips.filter((t) => t.status === "upcoming" || (t.status === "active" && t.id !== currentTripId));
+  const pastTours = trips.filter((t) => t.status === "completed");
 
   const toDisplayTour = (trip: Trip): Tour => ({
     id: trip.id,
@@ -95,26 +97,25 @@ export default function TripsView({
         </div>
       ) : (
         <div className="px-4 pt-4 space-y-6 max-w-[600px] mx-auto w-full">
-          {/* ACTIVE TRIP */}
-          {activeTours.length > 0 && (
+          {/* CURRENT TRIP */}
+          {currentTour && (
             <section>
-              <SectionLabel>ACTIVE TRIP</SectionLabel>
+              <SectionLabel>CURRENT TRIP</SectionLabel>
               <div className="space-y-2.5">
-                {activeTours.map((tour) => (
-                  <TripCard
-                    key={tour.id}
-                    tour={toDisplayTour(tour)}
-                    onSelect={onSelectTour}
-                  />
-                ))}
+                <TripCard
+                  key={currentTour.id}
+                  tour={toDisplayTour(currentTour)}
+                  onSelect={onSelectTour}
+                  isCurrent
+                />
               </div>
             </section>
           )}
 
-          {/* UPCOMING */}
+          {/* UPCOMING TRIPS */}
           {upcomingTours.length > 0 && (
             <section>
-              <SectionLabel>UPCOMING</SectionLabel>
+              <SectionLabel>UPCOMING TRIPS</SectionLabel>
               <div className="space-y-2.5">
                 {upcomingTours.map((tour) => (
                   <TripCard
@@ -127,12 +128,12 @@ export default function TripsView({
             </section>
           )}
 
-          {/* COMPLETED */}
-          {completedTours.length > 0 && (
+          {/* PAST TRIPS */}
+          {pastTours.length > 0 && (
             <section>
-              <SectionLabel>COMPLETED</SectionLabel>
+              <SectionLabel>PAST TRIPS</SectionLabel>
               <div className="space-y-2.5">
-                {completedTours.map((tour) => (
+                {pastTours.map((tour) => (
                   <TripCard
                     key={tour.id}
                     tour={toDisplayTour(tour)}
@@ -146,20 +147,22 @@ export default function TripsView({
       )}
 
       {/* ── Floating New Trip Action ────────────────────────────────────── */}
-      <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+60px+16px)] left-1/2 -translate-x-1/2 w-full max-w-[480px] z-20 flex justify-center pointer-events-none">
-        <button
-          onClick={onNewTour}
-          className="pressable pointer-events-auto inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#0A86A0] text-white font-700 text-[14px] shadow-[0 4px_16px_rgba(10,134,160,0.3)] hover:bg-[#087288] transition-colors active:scale-95"
-        >
-          <HugeiconsIcon
-            icon={PlusIcon}
-            size={16}
-            color="currentColor"
-            strokeWidth={2.5}
-          />
-          <span>New trip</span>
-        </button>
-      </div>
+      {trips.length > 0 && (
+        <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+60px+16px)] left-1/2 -translate-x-1/2 w-full max-w-[480px] z-20 flex justify-center pointer-events-none">
+          <button
+            onClick={onNewTour}
+            className="pressable pointer-events-auto inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#0A86A0] text-white font-700 text-[14px] shadow-[0 4px_16px_rgba(10,134,160,0.3)] hover:bg-[#087288] transition-colors active:scale-95"
+          >
+            <HugeiconsIcon
+              icon={PlusIcon}
+              size={16}
+              color="currentColor"
+              strokeWidth={2.5}
+            />
+            <span>New trip</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

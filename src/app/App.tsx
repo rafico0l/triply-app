@@ -40,7 +40,9 @@ import AddGuestSheet from "../features/members/components/AddGuestSheet";
 import MemberActionsMenu from "../features/members/components/MemberActionsMenu";
 import MemberOverflowSheet from "../features/members/components/MemberOverflowSheet";
 import RemoveMemberBlockedSheet from "../features/members/components/RemoveMemberBlockedSheet";
-import { IconEdit, IconUserPlus, IconUserX, IconAlertCircle, IconChevronLeft, IconChevronRight, IconDots, IconDotsV, IconArrowRight, IconCheck, IconTrash, IconInfo, IconHistory, IconCheckCircle2, IconReceipt, IconMapPin, IconSearch, IconX, IconNote, IconCalendar, IconHome, IconSettings, IconPlus } from "../components/shared/icons";
+import EditProfileSheet from "../features/settings/EditProfileSheet";
+import ChangePasswordSheet from "../features/settings/ChangePasswordSheet";
+import { IconEdit, IconUserPlus, IconUserX, IconAlertCircle, IconChevronLeft, IconChevronRight, IconDots, IconDotsV, IconArrowRight, IconCheck, IconTrash, IconInfo, IconHistory, IconCheckCircle2, IconReceipt, IconMapPin, IconSearch, IconX, IconNote, IconCalendar, IconHome, IconSettings, IconPlus, IconLock } from "../components/shared/icons";
 import DeleteSettlementSheet from "../features/settlements/components/DeleteSettlementSheet";
 import SettlementDetailSheet from "../features/settlements/components/SettlementDetailSheet";
 import Badge from "../components/shared/Badge";
@@ -564,6 +566,7 @@ export default function App() {
     onSignOut={handleSignOut}
     currentUser={currentUser}
     currentUserName={currentUserName}
+    setCurrentUserName={setCurrentUserName}
     currentTrip={currentTrip}
   />;
 }
@@ -571,7 +574,8 @@ export default function App() {
 function AuthenticatedApp({
   isEmpty = false, onNewTour, onJoinTour, onSelectTour, onSignOut, currentUser,
   trips, setTrips, currentTripId, setCurrentTripId,
-  currentUserName, currentTrip,
+  currentUserName, setCurrentUserName,
+  currentTrip,
 }: {
   isEmpty?: boolean;
   onNewTour: () => void;
@@ -584,6 +588,7 @@ function AuthenticatedApp({
   currentTripId: string;
   setCurrentTripId: React.Dispatch<React.SetStateAction<string>>;
   currentUserName: string | null;
+  setCurrentUserName: React.Dispatch<React.SetStateAction<string | null>>;
   currentTrip: Trip;
 }) {
   const [tab,                 setTab]                 = useState<Tab>("home");
@@ -597,6 +602,8 @@ function AuthenticatedApp({
   const [settlementError,     setSettlementError]     = useState<string | null>(null);
   const [tripError,           setTripError]           = useState<string | null>(null);
   const [inviteTrip,          setInviteTrip]          = useState<Trip | null>(null);
+  const [showEditProfile,     setShowEditProfile]     = useState(false);
+  const [showChangePassword,  setShowChangePassword]  = useState(false);
 
   const mobileScrollRef = useRef<HTMLDivElement>(null);
   const handleMobileScroll = () => setScrolled((mobileScrollRef.current?.scrollTop ?? 0) > 6);
@@ -610,6 +617,18 @@ function AuthenticatedApp({
   function updateCurrentTrip(updater: (trip: Trip) => Trip) {
     setTrips((prev) => prev.map((t) => (t.id === currentTripId ? updater(t) : t)));
   }
+
+  const handleUpdateProfileName = async (newName: string) => {
+    const user = currentUser;
+    if (!user) return;
+    const sb = getSupabase();
+    await sb
+      .from("profiles")
+      .update({ name: newName.trim() })
+      .eq("id", user.id);
+    setCurrentUserName(newName.trim());
+    setShowEditProfile(false);
+  };
 
   function handleExpenseSave(data: { amount: string; description: string; category: string | null; paidBy: string; splitIds: string[]; date: string; expenseId?: string }) {
     const amount = parseFloat(data.amount);
@@ -879,7 +898,7 @@ function AuthenticatedApp({
   const PageContent = () => (
     <>
       {tab === "home"       && <HomeView       expenses={currentExpenses} members={currentMembers} onTabChange={setTab} empty={isEmpty} onAddExpense={() => setShowAddExpense(true)} onSettle={() => setTab("settlement")} currentUserName={currentUserName ?? undefined} budget={currentTrip.budget} tripName={currentTrip.name} tripDates={currentTrip.dates} onNewTour={onNewTour} onJoinTrip={onJoinTour} />}
-      {tab === "trips"      && <TripsView trips={trips} onNewTour={onNewTour} onBack={() => setTab("home")} onSelectTour={(id) => { setCurrentTripId(id); setTripDetailId(id); }} onJoinTour={onJoinTour} />}
+      {tab === "trips"      && <TripsView trips={trips} onNewTour={onNewTour} onBack={() => setTab("home")} onSelectTour={(id) => { setCurrentTripId(id); setTripDetailId(id); }} onJoinTour={onJoinTour} currentTripId={currentTripId} />}
       {tab === "expenses"   && <ExpensesView   expenses={currentExpenses} members={currentMembers} onTapExpense={(id) => setSubScreen({ type: "expense-detail", id })} onAddExpense={() => setShowAddExpense(true)} onNewTour={onNewTour} onJoinTrip={onJoinTour} tripName={currentTrip.name} />}
       {tab === "members"    && (
         <MembersView
@@ -909,24 +928,75 @@ function AuthenticatedApp({
         />
       )}
       {tab === "settings"   && (
-        <div className="px-4 pt-4 space-y-3">
-          {/* Current user info */}
+        <div className="px-4 pt-4 space-y-4">
           {currentUser && (
-            <div className="bg-white rounded-[16px] border border-[#E1E7EF] px-5 py-4">
-              <p className="text-[11px] font-600 text-[#94A3B8] uppercase tracking-wide mb-2">Account</p>
-              <p className="text-[15px] font-600 text-[#0F172A]">{currentUser.user_metadata?.name ?? currentUser.email ?? "User"}</p>
-              <p className="text-[13px] font-500 text-[#94A3B8] mt-0.5">{currentUser.email ?? ""}</p>
-            </div>
+            <>
+              {/* Profile */}
+              <p className="text-[11px] font-700 text-[#94A3B8] uppercase tracking-wider px-1 mb-2.5">Profile</p>
+              <div className="bg-white rounded-[16px] border border-[#E1E7EF] px-5 py-4 flex items-center gap-3">
+                <Avatar
+                  member={{
+                    initials: (currentUserName ?? currentUser.user_metadata?.name ?? "U").slice(0, 2).toUpperCase(),
+                    color: "#0A86A0",
+                  }}
+                  size="lg"
+                />
+                <div className="min-w-0">
+                  <p className="text-[15px] font-700 text-[#0F172A] truncate">
+                    {currentUserName ?? currentUser.user_metadata?.name ?? "User"}
+                  </p>
+                  <p className="text-[13px] font-500 text-[#94A3B8] mt-0.5 truncate">
+                    {currentUser.user_metadata?.mobile ?? currentUser.email ?? ""}
+                  </p>
+                </div>
+              </div>
+
+              {/* Account */}
+              <p className="text-[11px] font-700 text-[#94A3B8] uppercase tracking-wider px-1 mt-4 mb-2.5">Account</p>
+              <div className="bg-white rounded-[16px] border border-[#E1E7EF] overflow-hidden">
+                <button
+                  onClick={() => setShowEditProfile(true)}
+                  className="w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-[#F8FAFC] transition-colors"
+                >
+                  <IconEdit size={18} />
+                  <span className="flex-1 text-[15px] font-600 text-[#0F172A]">Edit profile</span>
+                  <IconChevronRight size={18} />
+                </button>
+                <div className="border-t border-[#E1E7EF]" />
+                <button
+                  onClick={() => setShowChangePassword(true)}
+                  className="w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-[#F8FAFC] transition-colors"
+                >
+                  <IconLock size={18} />
+                  <span className="flex-1 text-[15px] font-600 text-[#0F172A]">Change password</span>
+                  <IconChevronRight size={18} />
+                </button>
+              </div>
+
+              {/* Sign out */}
+              <button
+                onClick={onSignOut}
+                className="w-full bg-white rounded-[16px] border border-[#E1E7EF] px-5 py-4 text-left mt-2"
+              >
+                <p className="text-[15px] font-600 text-[#DC2626]">Sign out</p>
+                <p className="text-[13px] font-500 text-[#94A3B8] mt-0.5">Sign out of your account</p>
+              </button>
+            </>
           )}
 
-          {/* Sign out */}
-          <button
-            onClick={onSignOut}
-            className="w-full bg-white rounded-[16px] border border-[#E1E7EF] px-5 py-4 text-left"
-          >
-            <p className="text-[15px] font-600 text-[#DC2626]">Sign out</p>
-            <p className="text-[13px] font-500 text-[#94A3B8] mt-0.5">Sign out of your account</p>
-          </button>
+          {showEditProfile && (
+            <EditProfileSheet
+              initialName={currentUserName ?? currentUser?.user_metadata?.name ?? ""}
+              onSave={handleUpdateProfileName}
+              onClose={() => setShowEditProfile(false)}
+            />
+          )}
+          {showChangePassword && currentUser && (
+            <ChangePasswordSheet
+              currentUser={currentUser}
+              onClose={() => setShowChangePassword(false)}
+            />
+          )}
         </div>
       )}
     </>
