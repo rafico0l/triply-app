@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Expense, Member } from "../../domain/types";
 import { fmt } from "../../lib/format";
-import CATEGORY_META from "../../lib/categoryMeta";
+import { CATEGORY_META, getCategoryMeta } from "../../lib/categoryMeta";
 import Sheet from "../../components/shared/Sheet";
 import EmptyState from "../../components/shared/EmptyState";
 import { IconSearch, IconX, IconChevronRight, IconCheck, IconReceipt } from "../../components/shared/icons";
@@ -34,7 +34,7 @@ export default function ExpensesView({
       const payer = members.find((m) => m.id === e.paidBy);
       const matchTitle = e.title.toLowerCase().includes(q);
       const matchPayer = payer?.name.toLowerCase().includes(q) ?? false;
-      const matchCat   = CATEGORY_META[e.category].label.toLowerCase().includes(q);
+      const matchCat   = getCategoryMeta(e.category).label.toLowerCase().includes(q);
       if (!matchTitle && !matchPayer && !matchCat) return false;
     }
     if (filter === "i-paid"      && e.paidBy !== me?.id)             return false;
@@ -52,7 +52,7 @@ export default function ExpensesView({
   }));
 
   const hasActiveFilters = filter !== "all" || !!categoryFilter || !!searchQuery;
-  const catLabel = categoryFilter ? CATEGORY_META[categoryFilter as Expense["category"]]?.label : null;
+  const catLabel = categoryFilter ? getCategoryMeta(categoryFilter).label : null;
 
   return (
     <div>

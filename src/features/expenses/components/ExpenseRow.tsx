@@ -1,6 +1,6 @@
 import type { Expense, Member } from "../../../domain/types";
 import { fmt } from "../../../lib/format";
-import CATEGORY_META from "../../../lib/categoryMeta";
+import { getCategoryMeta } from "../../../lib/categoryMeta";
 import { IconAlertCircle } from "../../../components/shared/icons";
 import { computeExpenseShares, toMajorUnits } from "../../../domain/finance";
 
@@ -10,7 +10,7 @@ export default function ExpenseRow({
   expense: Expense; members: Member[]; onTap?: () => void;
 }) {
   const payer = members.find((m) => m.id === expense.paidBy);
-  const cat = CATEGORY_META[expense.category];
+  const cat = getCategoryMeta(expense.category);
   const me = members.find((m) => m.isMe);
   const inSplit = me ? expense.splitIds.includes(me.id) : false;
   const shares = computeExpenseShares(expense);

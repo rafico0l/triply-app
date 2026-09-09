@@ -1,6 +1,6 @@
 import type { Expense, Member } from "../../../domain/types";
 import { fmt } from "../../../lib/format";
-import CATEGORY_META from "../../../lib/categoryMeta";
+import { getCategoryMeta } from "../../../lib/categoryMeta";
 import { computeExpenseShares, toMajorUnits } from "../../../domain/finance";
 
 export default function HomeExpenseRow({ expense, members }: { expense: Expense; members: Member[] }) {
@@ -10,7 +10,7 @@ export default function HomeExpenseRow({ expense, members }: { expense: Expense;
   const shares = computeExpenseShares(expense);
   const myShare = inSplit ? Math.round(toMajorUnits(shares.get(me?.id ?? "") ?? 0)) : 0;
   const isMe = payer?.isMe;
-  const cat = CATEGORY_META[expense.category];
+  const cat = getCategoryMeta(expense.category);
 
   return (
     <div className="flex items-center gap-3 px-4 py-3.5">

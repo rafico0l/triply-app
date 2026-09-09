@@ -12,7 +12,7 @@ import {
   AlertCircleIcon,
 } from "@hugeicons/core-free-icons";
 import { fmt } from "../../lib/format";
-import CATEGORY_META from "../../lib/categoryMeta";
+import { getCategoryMeta } from "../../lib/categoryMeta";
 import { Avatar } from "../../components/shared/Avatar";
 import type { Member, Expense } from "../../domain/types";
 import type { Trip } from "../../domain/trip";
@@ -529,7 +529,7 @@ export default function TripDetailsView({
             ) : (
               <div className="space-y-2.5">
                 {trip.expenses.slice(0, 4).map((expense) => {
-                  const cat = CATEGORY_META[expense.category] ?? CATEGORY_META.other;
+                  const cat = getCategoryMeta(expense.category);
                   const payer = trip.members.find((m) => m.id === expense.paidBy);
                   const payerLabel = payer?.isMe
                     ? "You paid"

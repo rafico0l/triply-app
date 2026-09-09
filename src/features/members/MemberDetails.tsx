@@ -9,7 +9,7 @@ import RemoveMemberConfirmSheet from "./components/RemoveMemberConfirmSheet";
 import EditNameSheet from "./components/EditNameSheet";
 import Badge from "../../components/shared/Badge";
 import { IconChevronLeft, IconDotsV, IconArrowRight, IconCheck } from "../../components/shared/icons";
-import CATEGORY_META from "../../lib/categoryMeta";
+import { getCategoryMeta } from "../../lib/categoryMeta";
 import { computeMemberFinancials, computeExpenseShares, toMajorUnits } from "../../domain/finance";
 
 export default function MemberDetails({
@@ -135,7 +135,7 @@ export default function MemberDetails({
               <p className="text-[11px] font-700 text-[#94A3B8] uppercase tracking-wider px-5 mb-2">Expense activity</p>
               <div className="bg-white mx-4 rounded-[14px] border border-[#E1E7EF] overflow-hidden divide-y divide-[#F4F6F9]">
                 {memberExpenses.slice(0, 8).map((e) => {
-                  const cat = CATEGORY_META[e.category];
+                  const cat = getCategoryMeta(e.category);
                   const isPayer = e.paidBy === member.id;
                   const inSplit = e.splitIds.includes(member.id);
                   const shares = computeExpenseShares(e);
