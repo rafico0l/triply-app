@@ -235,7 +235,7 @@ function mapTrip(
   const members: Member[] = dbMembers.map((m) => ({
     id: m.id,
     name: m.name,
-    initials: m.initials ?? "",
+    initials: m.initials && m.initials.trim() ? m.initials : deriveInitials(m.name),
     color: m.color ?? "#64748B",
     balance: 0,
     paid: 0,
