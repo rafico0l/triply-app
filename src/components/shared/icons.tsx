@@ -9,7 +9,7 @@ import {
   CheckmarkCircle01Icon,
   HistoryIcon,
   Add01Icon,
-  Edit01Icon,
+  Edit04Icon,
   UserAdd01Icon,
   UserMinus01Icon,
   AlertCircleIcon,
@@ -30,6 +30,8 @@ import {
   LockIcon,
   EyeIcon,
   EyeOffIcon,
+  Notification01Icon,
+  RotateCcwKeyIcon,
 } from "@hugeicons/core-free-icons";
 
 export function IconReceipt({ size = 22 }: { size?: number }) {
@@ -69,7 +71,7 @@ export function IconPlus({ size = 20 }: { size?: number }) {
 }
 
 export function IconEdit({ size = 16 }: { size?: number }) {
-  return <HugeiconsIcon icon={Edit01Icon} size={size} color="currentColor" strokeWidth={1.75} />;
+  return <HugeiconsIcon icon={Edit04Icon} size={size} color="currentColor" strokeWidth={1.75} />;
 }
 
 export function IconUserPlus({ size = 16 }: { size?: number }) {
@@ -150,4 +152,12 @@ export function IconEye({ size = 17 }: { size?: number }) {
 
 export function IconEyeOff({ size = 17 }: { size?: number }) {
   return <HugeiconsIcon icon={EyeOffIcon} size={size} color="currentColor" strokeWidth={1.75} />;
+}
+
+export function IconNotification({ size = 22 }: { size?: number }) {
+  return <HugeiconsIcon icon={Notification01Icon} size={size} color="currentColor" strokeWidth={1.5} />;
+}
+
+export function IconRotateCcwKey({ size = 16 }: { size?: number }) {
+  return <HugeiconsIcon icon={RotateCcwKeyIcon} size={size} color="currentColor" strokeWidth={1.75} />;
 }

@@ -56,6 +56,15 @@ export default function ExpensesView({
 
   return (
     <div>
+      {/* ── Page Header ─────────────────────────────────────────────────── */}
+      <div className="bg-white border-b border-[#E1E7EF] sticky top-0 z-10 safe-top">
+        <div className="flex items-center justify-center px-4 h-[56px]">
+          <h1 className="text-[17px] font-700 text-[#0F172A] leading-none text-center">
+            Expenses
+          </h1>
+        </div>
+      </div>
+
       {/* Sticky filter bar */}
       <div className="sticky top-0 bg-white border-b border-[#E1E7EF] z-10">
         {/* Search */}

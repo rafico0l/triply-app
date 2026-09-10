@@ -8,6 +8,7 @@ import JoinTripScreen from "../features/tours/JoinTrip";
 import AddExpense from "../features/expenses/AddExpense";
 import { Avatar } from "../components/shared/Avatar";
 import { fmt } from "../lib/format";
+import { formatBdMobileForDisplay } from "../lib/phone";
 import Sheet from "../components/shared/Sheet";
 import SettlementToast from "../features/settlements/components/SettlementToast";
 import RecordPaymentSheet from "../features/settlements/components/RecordPaymentSheet";
@@ -42,7 +43,7 @@ import MemberOverflowSheet from "../features/members/components/MemberOverflowSh
 import RemoveMemberBlockedSheet from "../features/members/components/RemoveMemberBlockedSheet";
 import EditProfileSheet from "../features/settings/EditProfileSheet";
 import ChangePasswordSheet from "../features/settings/ChangePasswordSheet";
-import { IconEdit, IconUserPlus, IconUserX, IconAlertCircle, IconChevronLeft, IconChevronRight, IconDots, IconDotsV, IconArrowRight, IconCheck, IconTrash, IconInfo, IconHistory, IconCheckCircle2, IconReceipt, IconMapPin, IconSearch, IconX, IconNote, IconCalendar, IconHome, IconSettings, IconPlus, IconLock } from "../components/shared/icons";
+import { IconEdit, IconUserPlus, IconUserX, IconAlertCircle, IconChevronLeft, IconChevronRight, IconDots, IconDotsV, IconArrowRight, IconCheck, IconTrash, IconInfo, IconHistory, IconCheckCircle2, IconReceipt, IconMapPin, IconSearch, IconX, IconNote, IconCalendar, IconHome, IconSettings, IconPlus, IconLock, IconRotateCcwKey } from "../components/shared/icons";
 import DeleteSettlementSheet from "../features/settlements/components/DeleteSettlementSheet";
 import SettlementDetailSheet from "../features/settlements/components/SettlementDetailSheet";
 import Badge from "../components/shared/Badge";
@@ -902,7 +903,7 @@ function AuthenticatedApp({
   const PageContent = () => (
     <>
       {tab === "home"       && <HomeView       expenses={currentExpenses} members={currentMembers} onTabChange={setTab} empty={isEmpty} onAddExpense={() => setShowAddExpense(true)} onSettle={() => setTab("settlement")} currentUserName={currentUserName ?? undefined} budget={currentTrip.budget} tripName={currentTrip.name} tripDates={currentTrip.dates} onNewTour={onNewTour} onJoinTrip={onJoinTour} />}
-      {tab === "trips"      && <TripsView trips={trips} onNewTour={onNewTour} onBack={() => setTab("home")} onSelectTour={(id) => { setCurrentTripId(id); setTripDetailId(id); }} onJoinTour={onJoinTour} currentTripId={currentTripId} />}
+      {tab === "trips"      && <TripsView trips={trips} onNewTour={onNewTour} onSelectTour={(id) => { setCurrentTripId(id); setTripDetailId(id); }} onJoinTour={onJoinTour} currentTripId={currentTripId} />}
       {tab === "expenses"   && <ExpensesView   expenses={currentExpenses} members={currentMembers} onTapExpense={(id) => setSubScreen({ type: "expense-detail", id })} onAddExpense={() => setShowAddExpense(true)} onNewTour={onNewTour} onJoinTrip={onJoinTour} tripName={currentTrip.name} />}
       {tab === "members"    && (
         <MembersView
@@ -932,7 +933,17 @@ function AuthenticatedApp({
         />
       )}
       {tab === "settings"   && (
-        <div className="px-4 pt-4 space-y-4">
+        <div className="relative min-h-full pb-20">
+          {/* ── Page Header ─────────────────────────────────────────────────── */}
+          <div className="bg-white border-b border-[#E1E7EF] sticky top-0 z-10 safe-top">
+            <div className="flex items-center justify-center px-4 h-[56px]">
+              <h1 className="text-[17px] font-700 text-[#0F172A] leading-none text-center">
+                Settings
+              </h1>
+            </div>
+          </div>
+
+          <div className="px-4 pt-4 space-y-4">
           {currentUser && (
             <>
               {/* Profile */}
@@ -950,7 +961,7 @@ function AuthenticatedApp({
                     {currentUserName ?? currentUser.user_metadata?.name ?? "User"}
                   </p>
                   <p className="text-[13px] font-500 text-[#94A3B8] mt-0.5 truncate">
-                    {currentUser.user_metadata?.mobile ?? currentUser.email ?? ""}
+                    {formatBdMobileForDisplay(currentUser.user_metadata?.mobile) ?? currentUser.email ?? ""}
                   </p>
                 </div>
               </div>
@@ -971,7 +982,7 @@ function AuthenticatedApp({
                   onClick={() => setShowChangePassword(true)}
                   className="w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-[#F8FAFC] transition-colors"
                 >
-                  <IconLock size={18} />
+                  <IconRotateCcwKey size={18} />
                   <span className="flex-1 text-[15px] font-600 text-[#0F172A]">Change password</span>
                   <IconChevronRight size={18} />
                 </button>
@@ -1001,6 +1012,7 @@ function AuthenticatedApp({
               onClose={() => setShowChangePassword(false)}
             />
           )}
+          </div>
         </div>
       )}
     </>
@@ -1031,9 +1043,7 @@ function AuthenticatedApp({
                   <button onClick={() => setMembersActionsOpen(true)} className="pressable w-9 h-9 flex items-center justify-center rounded-full text-[#0A86A0]" aria-label="Add member"><IconPlus size={19} /></button>
                 ) : tab === "settlement" ? (
                   <button onClick={() => setSubScreen({ type: "settlement-history" })} className="pressable w-9 h-9 flex items-center justify-center rounded-full text-[#475569]" aria-label="Settlement history"><IconHistory size={18} /></button>
-                ) : (
-                  <button className="pressable w-9 h-9 flex items-center justify-center rounded-full text-[#475569]" aria-label="More options"><IconDots size={18} /></button>
-                )
+                ) : undefined
               }
             />
             <SyncBanner status={syncStatus} />

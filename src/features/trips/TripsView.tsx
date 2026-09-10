@@ -1,5 +1,5 @@
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowLeft01Icon, PlusIcon, MapIcon } from "@hugeicons/core-free-icons";
+import { PlusIcon, MapIcon } from "@hugeicons/core-free-icons";
 import TripCard, { type Tour } from "./components/TripCard";
 import { computeTotalSpent, toMajorUnits } from "../../domain/finance";
 import type { Trip } from "../../domain/trip";
@@ -18,14 +18,12 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 export default function TripsView({
   trips,
   onNewTour,
-  onBack,
   onSelectTour,
   onJoinTour,
   currentTripId,
 }: {
   trips: Trip[];
   onNewTour: () => void;
-  onBack?: () => void;
   onSelectTour?: (id: string) => void;
   onJoinTour?: () => void;
   currentTripId?: string;
@@ -49,19 +47,7 @@ export default function TripsView({
     <div className="relative min-h-full pb-20">
       {/* ── Page Header ─────────────────────────────────────────────────── */}
       <div className="bg-white border-b border-[#E1E7EF] sticky top-0 z-10 safe-top">
-        <div className="flex items-center justify-center px-4 h-[56px] relative">
-          <button
-            onClick={onBack}
-            className="pressable absolute left-4 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-full text-[#475569] hover:bg-[#F4F6F9] transition-colors"
-            aria-label="Go back"
-          >
-            <HugeiconsIcon
-              icon={ArrowLeft01Icon}
-              size={22}
-              color="currentColor"
-              strokeWidth={1.75}
-            />
-          </button>
+        <div className="flex items-center justify-center px-4 h-[56px]">
           <h1 className="text-[17px] font-700 text-[#0F172A] leading-none text-center">
             Your trips
           </h1>

@@ -3,6 +3,7 @@ import type { Tab } from "../../types/navigation";
 import HomeHeader from "./components/HomeHeader";
 import BalanceCard from "./components/BalanceCard";
 import RecentExpenses from "./components/RecentExpenses";
+import { getCurrentGreeting } from "../../lib/greeting";
 
 export default function HomeView({
   expenses,
@@ -33,10 +34,11 @@ export default function HomeView({
 }) {
   const me = members.find((m) => m.isMe);
   const userName = currentUserName ?? me?.name ?? "You";
+  const greeting = getCurrentGreeting();
 
   return (
     <div className="bg-[#F4F6F9] min-h-full">
-      <HomeHeader userName={userName} />
+      <HomeHeader userName={userName} greeting={greeting} />
       <BalanceCard
         expenses={expenses}
         members={members}
