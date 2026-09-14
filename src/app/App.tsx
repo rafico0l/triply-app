@@ -43,7 +43,7 @@ import MemberOverflowSheet from "../features/members/components/MemberOverflowSh
 import RemoveMemberBlockedSheet from "../features/members/components/RemoveMemberBlockedSheet";
 import EditProfileSheet from "../features/settings/EditProfileSheet";
 import ChangePasswordSheet from "../features/settings/ChangePasswordSheet";
-import { IconEdit, IconUserPlus, IconUserX, IconAlertCircle, IconChevronLeft, IconChevronRight, IconDots, IconDotsV, IconArrowRight, IconCheck, IconTrash, IconInfo, IconHistory, IconCheckCircle2, IconReceipt, IconMapPin, IconSearch, IconX, IconNote, IconCalendar, IconHome, IconSettings, IconPlus, IconLock, IconRotateCcwKey } from "../components/shared/icons";
+import { IconEdit, IconUserPlus, IconUserX, IconAlertCircle, IconChevronLeft, IconChevronRight, IconDotsV, IconArrowRight, IconCheck, IconTrash, IconInfo, IconHistory, IconCheckCircle2, IconReceipt, IconMapPin, IconSearch, IconX, IconNote, IconCalendar, IconHome, IconSettings, IconPlus, IconLock, IconRotateCcwKey } from "../components/shared/icons";
 import DeleteSettlementSheet from "../features/settlements/components/DeleteSettlementSheet";
 import SettlementDetailSheet from "../features/settlements/components/SettlementDetailSheet";
 import Badge from "../components/shared/Badge";
@@ -156,11 +156,11 @@ function AppHeader({
           <IconChevronLeft />
         </button>
       )}
-      <div className="flex-1 min-w-0 flex flex-col justify-center">
-        <h1 className="text-[15px] font-700 text-[#0F172A] truncate leading-none">{title}</h1>
+      <div className="flex-1 min-w-0 flex flex-col justify-center items-center">
+        <h1 className="text-[15px] font-700 text-[#0F172A] truncate leading-none text-center">{title}</h1>
         {subtitle && (
           <div className="overflow-hidden transition-all duration-200 ease-out" style={{ maxHeight: scrolled ? 0 : 18, opacity: scrolled ? 0 : 1, marginTop: scrolled ? 0 : 3 }}>
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center justify-center gap-2 min-w-0">
               <p className="text-[12px] text-[#94A3B8] font-500 leading-none truncate">{subtitle}</p>
               {inlineSync && (
                 <span className="flex items-center gap-[3px] text-[11px] font-500 text-[#94A3B8] shrink-0">
@@ -934,15 +934,6 @@ function AuthenticatedApp({
       )}
       {tab === "settings"   && (
         <div className="relative min-h-full pb-20">
-          {/* ── Page Header ─────────────────────────────────────────────────── */}
-          <div className="bg-white border-b border-[#E1E7EF] sticky top-0 z-10 safe-top">
-            <div className="flex items-center justify-center px-4 h-[56px]">
-              <h1 className="text-[17px] font-700 text-[#0F172A] leading-none text-center">
-                Settings
-              </h1>
-            </div>
-          </div>
-
           <div className="px-4 pt-4 space-y-4">
           {currentUser && (
             <>
@@ -1085,13 +1076,12 @@ function AuthenticatedApp({
         <div className="flex-1 flex flex-col overflow-hidden safe-top">
           <div className="sticky top-0 z-20 bg-white border-b border-[#E1E7EF]">
             <div className="max-w-[720px] mx-auto px-6 h-[52px] flex items-center gap-3">
-              <h1 className="text-[15px] font-700 text-[#0F172A] flex-1 truncate">{h.title}</h1>
-              {tab === "members" ? (
+              <h1 className="text-[15px] font-700 text-[#0F172A] flex-1 truncate text-center">{h.title}</h1>
+              {tab === "members" && (
                 <button onClick={() => setMembersActionsOpen(true)} className="pressable w-9 h-9 flex items-center justify-center rounded-full text-[#0A86A0] hover:bg-[#EFF9FB]" aria-label="Add member"><IconPlus size={19} /></button>
-              ) : tab === "settlement" ? (
+              )}
+              {tab === "settlement" && (
                 <button onClick={() => setSubScreen({ type: "settlement-history" })} className="pressable w-9 h-9 flex items-center justify-center rounded-full text-[#475569] hover:bg-[#F4F6F9]" aria-label="Settlement history"><IconHistory size={18} /></button>
-              ) : (
-                <button className="pressable w-9 h-9 flex items-center justify-center rounded-full text-[#475569] hover:bg-[#F4F6F9]" aria-label="More options"><IconDots size={18} /></button>
               )}
             </div>
             <SyncBanner status={syncStatus} />
