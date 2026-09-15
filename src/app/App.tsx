@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, type ReactNode } from "react";
 import { AuthFlow } from "../features/auth/Auth";
-import TourList from "../features/tours/TourList";
 import CreateTour, { type CreateTourData } from "../features/tours/CreateTour";
 import InviteMembers from "../features/tours/InviteMembers";
 import InviteAcceptFlow from "../features/tours/InviteAccept";
@@ -266,15 +265,14 @@ function parseJoinTokenFromUrl(): string | null {
 }
 
 // ─── App Shell ────────────────────────────────────────────────────────────────
-type Screen = "tourList" | "createTour" | "inviteMembers" | "inviteAccept" | "joinTrip" | "tour";
+type Screen = "createTour" | "inviteMembers" | "inviteAccept" | "joinTrip" | "tour";
 
 export default function App() {
   const [authLoading,    setAuthLoading]    = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser,     setCurrentUser]     = useState<User | null>(null);
-  const [screen, setScreen]                   = useState<Screen>(DEMO_INVITE_MODE ? "inviteAccept" : "tour");
-  const [activeTourId, setActiveTourId]       = useState<string | null>(null);
-  const [trips, setTrips]                     = useState<Trip[]>([]);
+  const [screen, setScreen] = useState<Screen>(DEMO_INVITE_MODE ? "inviteAccept" : "tour");
+  const [trips, setTrips] = useState<Trip[]>([]);
   const [currentTripId, setCurrentTripId]     = useState<string>("");
   const [tripsLoading, setTripsLoading]       = useState(false);
   const [tripLoadError, setTripLoadError]     = useState<string | null>(null);
@@ -363,10 +361,8 @@ export default function App() {
       if (loadedTrips.length > 0) {
         const firstId = loadedTrips[0].id;
         setCurrentTripId(firstId);
-        setActiveTourId(firstId);
       } else {
         setCurrentTripId("");
-        setActiveTourId(null);
       }
     } catch (err) {
       if (!mounted) return;
@@ -406,7 +402,6 @@ export default function App() {
 
       setTrips((prev) => [...prev, newTrip]);
       setCurrentTripId(newTrip.id);
-      setActiveTourId(newTrip.id);
       setPendingInviteTrip(newTrip);
       setScreen("inviteMembers");
     } catch (err) {
@@ -434,14 +429,13 @@ export default function App() {
           const user = await getCurrentUser();
           setCurrentUser(user);
           setIsAuthenticated(true);
-          setActiveTourId("joined");
           setScreen("tour");
         }}
         onGoToTours={async () => {
           const user = await getCurrentUser();
           setCurrentUser(user);
           setIsAuthenticated(true);
-          setScreen("tourList");
+          setScreen("tour");
         }}
       />
     );
@@ -464,7 +458,7 @@ export default function App() {
   if (screen === "createTour") {
     return (
       <>
-        <CreateTour onBack={() => { setCreateError(null); setScreen("tourList"); }} onCreate={handleCreateTour} />
+        <CreateTour onBack={() => { setCreateError(null); setScreen("tour"); }} onCreate={handleCreateTour} />
         {creating && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
             <div className="bg-white rounded-[16px] px-6 py-4 shadow-lg flex items-center gap-3">
@@ -504,7 +498,7 @@ export default function App() {
   if (screen === "joinTrip") {
     return <JoinTripScreen
       initialToken={urlJoinTokenRef.current ?? pendingJoinToken ?? undefined}
-      onBack={() => { setPendingJoinToken(null); setScreen("tourList"); }}
+      onBack={() => { setPendingJoinToken(null); setScreen("tour"); }}
       onJoined={(tripId) => {
         setPendingJoinToken(null);
         urlJoinTokenRef.current = null;
@@ -512,14 +506,10 @@ export default function App() {
         loadTripsForUser(currentUser!.id, true).then(() => {
           if (tripId) {
             setCurrentTripId(tripId);
-            setActiveTourId(tripId);
           }
         });
       }}
     />;
-  }
-  if (screen === "tourList") {
-    return <TourList onSelectTour={(id: string) => { setActiveTourId(id); setScreen("tour"); }} onNewTour={() => setScreen("createTour")} />;
   }
 
   if (tripsLoading) {
@@ -564,10 +554,9 @@ export default function App() {
     setTrips={setTrips}
     currentTripId={currentTripId}
     setCurrentTripId={setCurrentTripId}
-    isEmpty={!activeTourId || activeTourId === "new"}
+    isEmpty={trips.length === 0 || currentTripId === ""}
     onNewTour={() => setScreen("createTour")}
     onJoinTour={() => setScreen("joinTrip")}
-    onSelectTour={(id: string) => setActiveTourId(id)}
     onSignOut={handleSignOut}
     currentUser={currentUser}
     currentUserName={currentUserName}
@@ -577,7 +566,7 @@ export default function App() {
 }
 
 function AuthenticatedApp({
-  isEmpty = false, onNewTour, onJoinTour, onSelectTour, onSignOut, currentUser,
+  isEmpty = false, onNewTour, onJoinTour, onSignOut, currentUser,
   trips, setTrips, currentTripId, setCurrentTripId,
   currentUserName, setCurrentUserName,
   currentTrip,
@@ -585,7 +574,6 @@ function AuthenticatedApp({
   isEmpty?: boolean;
   onNewTour: () => void;
   onJoinTour?: () => void;
-  onSelectTour?: (id: string) => void;
   onSignOut: () => void;
   currentUser: User | null;
   trips: Trip[];
@@ -796,7 +784,6 @@ function AuthenticatedApp({
         if (remaining.length > 0) {
           const next = remaining[0];
           setCurrentTripId(next.id);
-          onSelectTour?.(next.id);
         } else {
           setCurrentTripId("");
         }
