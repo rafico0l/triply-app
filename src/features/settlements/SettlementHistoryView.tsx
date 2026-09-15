@@ -102,6 +102,7 @@ export default function SettlementHistoryView({
         <SettlementDetailSheet
           settlement={selected}
           members={members}
+          me={me}
           canDelete={me ? (me.id === selected.recordedBy || isCurrentUserOwner) : false}
           onDelete={() => { setConfirmDeleteId(selected.id); setSelectedId(null); }}
           onClose={() => setSelectedId(null)}

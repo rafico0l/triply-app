@@ -17,7 +17,7 @@ export default function RecentExpenses({ expenses, members, onViewAll, empty = f
       </section>
     );
   }
-  const recent = expenses.slice(0, 3);
+  const recent = [...expenses].sort((a, b) => b.dateIso.localeCompare(a.dateIso)).slice(0, 3);
   return (
     <section className="px-4 pb-1">
       <div className="flex items-center justify-between mb-3">

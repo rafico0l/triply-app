@@ -36,3 +36,30 @@ export interface RecordedSettlement {
   recordedBy: string;
   syncStatus?: "pending" | "failed";
 }
+
+export type SettlementRequestType = "edit" | "delete";
+export type SettlementRequestStatus = "pending" | "approved" | "rejected" | "cancelled";
+
+export interface SettlementRequest {
+  id: string;
+  tripId: string;
+  settlementId: string | null;
+  requestType: SettlementRequestType;
+  requesterId: string;
+  originalAmountMinor: number;
+  proposedAmountMinor: number | null;
+  status: SettlementRequestStatus;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+export type SettlementApprovalStatus = "pending" | "approved" | "rejected";
+
+export interface SettlementRequestApproval {
+  id: string;
+  requestId: string;
+  approverId: string;
+  status: SettlementApprovalStatus;
+  respondedAt: string | null;
+  createdAt: string;
+}
