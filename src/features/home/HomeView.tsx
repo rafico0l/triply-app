@@ -18,6 +18,8 @@ export default function HomeView({
   tripDates,
   onNewTour,
   onJoinTrip,
+  onNotificationPress,
+  pendingNotificationCount,
 }: {
   expenses: Expense[];
   members: Member[];
@@ -31,6 +33,8 @@ export default function HomeView({
   tripDates?: string;
   onNewTour?: () => void;
   onJoinTrip?: () => void;
+  onNotificationPress?: () => void;
+  pendingNotificationCount?: number;
 }) {
   const me = members.find((m) => m.isMe);
   const userName = currentUserName ?? me?.name ?? "You";
@@ -38,7 +42,7 @@ export default function HomeView({
 
   return (
     <div className="bg-[#F4F6F9] min-h-full">
-      <HomeHeader userName={userName} greeting={greeting} />
+      <HomeHeader userName={userName} greeting={greeting} onNotificationPress={onNotificationPress} pendingCount={pendingNotificationCount} />
       <BalanceCard
         expenses={expenses}
         members={members}

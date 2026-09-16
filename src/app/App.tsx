@@ -14,6 +14,8 @@ import RecordPaymentSheet from "../features/settlements/components/RecordPayment
 import SettlementHistoryView from "../features/settlements/SettlementHistoryView";
 import SettlementView from "../features/settlements/SettlementView";
 import HomeView from "../features/home/HomeView";
+import NotificationsView from "../features/notifications/NotificationsView";
+import { loadPendingNotifications } from "../features/notifications/notificationLoader";
 import TripsView from "../features/trips/TripsView";
 import TripDetailsView from "../features/trips/TripDetailsView";
 import { computeAllMemberFinancials, toMajorUnits } from "../domain/finance";
@@ -31,6 +33,7 @@ type SyncStatus = "online" | "offline" | "syncing" | "pending" | "failed";
 
 import type { Member, Expense, RecordedSettlement } from "../domain/types";
 import type { Tab } from "../types/navigation";
+import type { SubScreen } from "../types/navigation";
 import type { SuggestedPayment } from "../features/settlements/settlementUtils";
 import { MemberRowCompact, MemberRow } from "../features/members/components/MemberRow";
 import RemoveMemberConfirmSheet from "../features/members/components/RemoveMemberConfirmSheet";
@@ -57,12 +60,7 @@ import BottomNav from "../components/navigation/BottomNav";
 
 
 
-type SubScreen =
-  | { type: "expense-detail"; id: string }
-  | { type: "member-detail"; id: string }
-  | { type: "settlement-history" }
-  | { type: "members" }
-  | null;
+// SubScreen type imported from src/types/navigation.ts
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -562,6 +560,7 @@ export default function App() {
     currentUserName={currentUserName}
     setCurrentUserName={setCurrentUserName}
     currentTrip={currentTrip}
+    onRefreshTrips={() => loadTripsForUser(currentUser!.id, true)}
   />;
 }
 
@@ -569,7 +568,7 @@ function AuthenticatedApp({
   isEmpty = false, onNewTour, onJoinTour, onSignOut, currentUser,
   trips, setTrips, currentTripId, setCurrentTripId,
   currentUserName, setCurrentUserName,
-  currentTrip,
+  currentTrip, onRefreshTrips,
 }: {
   isEmpty?: boolean;
   onNewTour: () => void;
@@ -583,6 +582,7 @@ function AuthenticatedApp({
   currentUserName: string | null;
   setCurrentUserName: React.Dispatch<React.SetStateAction<string | null>>;
   currentTrip: Trip;
+  onRefreshTrips: () => void;
 }) {
   const [tab,                 setTab]                 = useState<Tab>("home");
   const [syncStatus]                                  = useState<SyncStatus>("pending");
@@ -606,6 +606,22 @@ function AuthenticatedApp({
   const currentSettlements = currentTrip.settlements;
 
   const me = currentMembers.find((m) => m.isMe);
+
+  const [pendingNotificationCount, setPendingNotificationCount] = useState(0);
+
+  async function fetchPendingNotificationCount() {
+    if (!me) return;
+    try {
+      const result = await loadPendingNotifications(currentMembers);
+      setPendingNotificationCount(result.count);
+    } catch {
+      // non-critical — ignore
+    }
+  }
+
+  useEffect(() => {
+    fetchPendingNotificationCount();
+  }, [me?.id, currentMembers]);
 
   function updateCurrentTrip(updater: (trip: Trip) => Trip) {
     setTrips((prev) => prev.map((t) => (t.id === currentTripId ? updater(t) : t)));
@@ -889,7 +905,7 @@ function AuthenticatedApp({
 
   const PageContent = () => (
     <>
-      {tab === "home"       && <HomeView       expenses={currentExpenses} members={currentMembers} onTabChange={setTab} empty={isEmpty} onAddExpense={() => setShowAddExpense(true)} onSettle={() => setTab("settlement")} currentUserName={currentUserName ?? undefined} budget={currentTrip.budget} tripName={currentTrip.name} tripDates={currentTrip.dates} onNewTour={onNewTour} onJoinTrip={onJoinTour} />}
+      {tab === "home"       && <HomeView       expenses={currentExpenses} members={currentMembers} onTabChange={setTab} empty={isEmpty} onAddExpense={() => setShowAddExpense(true)} onSettle={() => setTab("settlement")} currentUserName={currentUserName ?? undefined} budget={currentTrip.budget} tripName={currentTrip.name} tripDates={currentTrip.dates} onNewTour={onNewTour} onJoinTrip={onJoinTour} onNotificationPress={() => setSubScreen({ type: "notifications" })} pendingNotificationCount={pendingNotificationCount} />}
       {tab === "trips"      && <TripsView trips={trips} onNewTour={onNewTour} onSelectTour={(id) => { setCurrentTripId(id); setTripDetailId(id); }} onJoinTour={onJoinTour} currentTripId={currentTripId} />}
       {tab === "expenses"   && <ExpensesView   expenses={currentExpenses} members={currentMembers} onTapExpense={(id) => setSubScreen({ type: "expense-detail", id })} onAddExpense={() => setShowAddExpense(true)} onNewTour={onNewTour} onJoinTrip={onJoinTour} tripName={currentTrip.name} />}
       {tab === "members"    && (
@@ -1115,6 +1131,20 @@ function AuthenticatedApp({
           isCurrentUserOwner={me?.role === "owner"}
           onDeleteSettlement={handleDeleteSettlement}
           onBack={() => setSubScreen(null)}
+        />
+      )}
+
+      {/* ── Notifications ──────────────────────────────────────────────────── */}
+      {subScreen?.type === "notifications" && me && (
+        <NotificationsView
+          me={me}
+          currentTripId={currentTripId}
+          currentMembers={currentMembers}
+          onBack={() => setSubScreen(null)}
+          onRefreshTrip={() => {
+            onRefreshTrips();
+            fetchPendingNotificationCount();
+          }}
         />
       )}
 

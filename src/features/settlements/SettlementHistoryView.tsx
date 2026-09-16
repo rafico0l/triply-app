@@ -6,6 +6,7 @@ import EmptyState from "../../components/shared/EmptyState";
 import { IconArrowRight, IconChevronLeft, IconHistory } from "../../components/shared/icons";
 import DeleteSettlementSheet from "./components/DeleteSettlementSheet";
 import SettlementDetailSheet from "./components/SettlementDetailSheet";
+import EditSettlementSheet from "./components/EditSettlementSheet";
 
 export default function SettlementHistoryView({
   recordedSettlements, members, me, isCurrentUserOwner, onDeleteSettlement, onBack,
@@ -13,8 +14,10 @@ export default function SettlementHistoryView({
   recordedSettlements: RecordedSettlement[]; members: Member[]; me: Member | undefined;
   isCurrentUserOwner: boolean; onDeleteSettlement: (id: string) => void; onBack: () => void;
 }) {
-  const [selectedId,      setSelectedId]      = useState<string | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [selectedId,        setSelectedId]        = useState<string | null>(null);
+  const [confirmDeleteId,   setConfirmDeleteId]   = useState<string | null>(null);
+  const [editingSettlement, setEditingSettlement]  = useState<RecordedSettlement | null>(null);
+  const [detailRefreshKey,  setDetailRefreshKey]   = useState(0);
 
   const selected      = selectedId      ? recordedSettlements.find((s) => s.id === selectedId)      : null;
   const confirmDelete = confirmDeleteId ? recordedSettlements.find((s) => s.id === confirmDeleteId) : null;
@@ -106,6 +109,8 @@ export default function SettlementHistoryView({
           canDelete={me ? (me.id === selected.recordedBy || isCurrentUserOwner) : false}
           onDelete={() => { setConfirmDeleteId(selected.id); setSelectedId(null); }}
           onClose={() => setSelectedId(null)}
+          onEdit={me ? () => setEditingSettlement(selected) : undefined}
+          refreshKey={detailRefreshKey}
         />
       )}
 
@@ -113,8 +118,23 @@ export default function SettlementHistoryView({
         <DeleteSettlementSheet
           settlement={confirmDelete}
           members={members}
-          onConfirm={() => { onDeleteSettlement(confirmDelete.id); setConfirmDeleteId(null); }}
+          onRequested={() => {
+            setConfirmDeleteId(null);
+            setDetailRefreshKey((k) => k + 1);
+          }}
           onClose={() => setConfirmDeleteId(null)}
+        />
+      )}
+
+      {editingSettlement && me && (
+        <EditSettlementSheet
+          settlement={editingSettlement}
+          members={members}
+          onClose={() => setEditingSettlement(null)}
+          onRequested={() => {
+            setEditingSettlement(null);
+            setDetailRefreshKey((k) => k + 1);
+          }}
         />
       )}
     </div>
