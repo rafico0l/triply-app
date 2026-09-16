@@ -33,7 +33,6 @@ export default function SettlementView({
   }, [recordPayment, showManual, onClearError]);
 
   const suggestedPayments = computeSuggestedPayments(members, expenses, recordedSettlements);
-  const totalToSettle     = suggestedPayments.reduce((s, p) => s + p.amount, 0);
   const isFullySettled    = suggestedPayments.length === 0;
   const nothingToSettle   = expenses.length === 0 && recordedSettlements.length === 0;
 
@@ -92,16 +91,21 @@ export default function SettlementView({
             </div>
           </div>
         )}
-        <div className="flex flex-col items-center justify-center px-8 pt-12 pb-6 text-center">
-          <div className="w-16 h-16 rounded-full bg-[#F0FDF4] border-2 border-[#BBF7D0] flex items-center justify-center text-[#15803D] mb-5">
-            <IconCheckCircle2 size={30} />
+        <div className="px-4 pt-3 pb-1">
+          <div className="flex items-center gap-3 bg-[#F0FDF4] border border-[#BBF7D0] rounded-[14px] px-4 py-3">
+            <div className="w-9 h-9 rounded-full bg-[#DCFCE7] flex items-center justify-center text-[#15803D] shrink-0">
+              <IconCheckCircle2 size={18} />
+            </div>
+            <div>
+              <p className="text-[14px] font-700 text-[#15803D]">All settled up</p>
+              <p className="text-[13px] font-500 text-[#16A34A]">Everyone's balance is settled.</p>
+            </div>
           </div>
-          <p className="text-[22px] font-800 text-[#0F172A] mb-2">{"You're all settled up"}</p>
-          <p className="text-[15px] font-500 text-[#94A3B8] leading-relaxed max-w-[240px]">{"Everyone's balance is clear."}</p>
         </div>
 
-        <div className="px-4 pb-3">
-          <p className="text-[11px] font-700 text-[#94A3B8] uppercase tracking-wider px-1 mb-2">Members</p>
+        {/* Member balances */}
+        <div className="px-4 pt-3 pb-2">
+          <p className="text-[11px] font-700 text-[#94A3B8] uppercase tracking-wider px-1 mb-2">Member balances</p>
           <div className="bg-white rounded-[14px] border border-[#E1E7EF] overflow-hidden divide-y divide-[#F4F6F9]">
             {sorted.map((m) => (
               <div key={m.id} className="flex items-center gap-3 px-4 py-3">
@@ -113,23 +117,41 @@ export default function SettlementView({
           </div>
         </div>
 
-        {recordedSettlements.length > 0 && (
-          <div className="px-4 pb-6">
-            <button onClick={onOpenHistory} className="pressable w-full flex items-center justify-between px-4 py-3.5 bg-white rounded-[14px] border border-[#E1E7EF]">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-[9px] bg-[#F4F6F9] flex items-center justify-center text-[#475569]">
-                  <IconHistory size={15} />
-                </div>
-                <span className="text-[15px] font-600 text-[#0F172A]">Settlement history</span>
+        {/* Secondary actions */}
+        <div className="px-4 pt-2 pb-2 space-y-2">
+          <button
+            onClick={() => setShowManual(true)}
+            className="pressable w-full flex items-center justify-between px-4 h-11 rounded-[13px] bg-white border border-[#E1E7EF] text-[#0F172A] font-600 text-[14px]"
+          >
+            <span>Record payment manually</span>
+            <span className="text-[#94A3B8]"><IconChevronRight size={15} /></span>
+          </button>
+          {recordedSettlements.length > 0 && (
+            <button
+              onClick={onOpenHistory}
+              className="pressable w-full flex items-center justify-between px-4 h-11 rounded-[13px] bg-white border border-[#E1E7EF] text-[#475569] font-500 text-[14px]"
+            >
+              <div className="flex items-center gap-2.5">
+                <IconHistory size={15} />
+                <span>Settlement history</span>
               </div>
               <div className="flex items-center gap-1.5 text-[#94A3B8]">
-                <span className="num text-[13px] font-500">{recordedSettlements.length}</span>
-                <IconChevronRight size={14} />
+                <span className="num text-[13px]">{recordedSettlements.length}</span>
+                <IconChevronRight size={13} />
               </div>
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
+        {showManual && (
+          <RecordPaymentSheet
+            isManual
+            members={members}
+            me={me}
+            onRecord={handleRecord}
+            onClose={() => setShowManual(false)}
+          />
+        )}
         {toast && <SettlementToast fromName={toast.from} toName={toast.to} amount={toast.amount} onHide={() => setToast(null)} />}
       </div>
     );
@@ -146,58 +168,78 @@ export default function SettlementView({
           </div>
         </div>
       )}
-      {/* Summary banner */}
-      <div className="px-4 pt-4 pb-1">
-        <div className="bg-[#EFF9FB] border border-[#A3DFE9] rounded-[14px] px-4 py-3.5 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-[13px] font-700 text-[#0A7490]">
-              {suggestedPayments.length} {suggestedPayments.length === 1 ? "payment" : "payments"} remaining
-            </p>
-            <p className="num text-[13px] font-500 text-[#0A86A0] mt-0.5">{fmt(totalToSettle)} to settle</p>
-          </div>
-          <div className="w-10 h-10 rounded-full bg-white/60 border border-[#A3DFE9] flex items-center justify-center text-[#0A86A0] shrink-0">
-            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M7 16l-4-4 4-4M17 8l4 4-4 4M3 12h18" />
-            </svg>
-          </div>
-        </div>
-      </div>
 
       {/* Suggested payments */}
-      <div className="px-4 pt-4 pb-2">
-        <p className="text-[11px] font-700 text-[#94A3B8] uppercase tracking-wider px-1 mb-2">Suggested payments</p>
-        <div className="space-y-2">
-          {suggestedPayments.map((p, i) => {
+      <div className="px-4 pt-3 pb-2">
+        <p className="text-[11px] font-700 text-[#94A3B8] uppercase tracking-wider px-1 mb-2">
+          {suggestedPayments.length === 1 ? "Suggested payment" : "Suggested payments"}
+        </p>
+
+        {suggestedPayments.length === 1 ? (
+          /* ── Single payment: rich card ──────────────────────────────── */
+          (() => {
+            const p   = suggestedPayments[0];
             const from = members.find((m) => m.id === p.from);
             const to   = members.find((m) => m.id === p.to);
             if (!from || !to) return null;
             return (
-              <div key={i} className="bg-white rounded-[14px] border border-[#E1E7EF] overflow-hidden">
-                <div className="flex items-center gap-3 px-4 pt-4 pb-3">
+              <div className="bg-white rounded-[14px] border border-[#E1E7EF] overflow-hidden">
+                <div className="flex items-center gap-3 px-4 pt-3.5 pb-2.5">
                   <div className="flex items-center shrink-0">
                     <Avatar member={from} size="sm" />
                     <span className="mx-2 text-[#C9D4DF]"><IconArrowRight size={13} /></span>
                     <Avatar member={to} size="sm" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-600 text-[#475569]">
+                    <p className="text-[13px] font-500 text-[#64748B]">
                       {from.isMe ? "You" : from.name.split(" ")[0]} → {to.isMe ? "you" : to.name.split(" ")[0]}
                     </p>
                     <p className="num text-[20px] font-800 text-[#0A86A0] leading-tight">{fmt(p.amount)}</p>
                   </div>
                 </div>
-                <div className="px-4 pb-3.5">
+                <div className="px-4 pb-3">
                   <button
                     onClick={() => setRecordPayment({ fromId: p.from, toId: p.to, amount: p.amount })}
-                    className="pressable w-full h-9 rounded-[10px] bg-[#EFF9FB] text-[#0A86A0] font-700 text-[13px] border border-[#A3DFE9] transition-colors hover:bg-[#D1EFF5]"
+                    className="pressable w-full h-10 rounded-[11px] bg-[#0A86A0] text-white font-700 text-[14px] shadow-[0_2px_8px_rgba(10,134,160,0.18)] transition-colors hover:bg-[#097490]"
                   >
                     Record payment
                   </button>
                 </div>
               </div>
             );
-          })}
-        </div>
+          })()
+        ) : (
+          /* ── Multiple payments: compact list ────────────────────────── */
+          <div className="bg-white rounded-[14px] border border-[#E1E7EF] overflow-hidden">
+            {suggestedPayments.map((p, i) => {
+              const from = members.find((m) => m.id === p.from);
+              const to   = members.find((m) => m.id === p.to);
+              if (!from || !to) return null;
+              return (
+                <button
+                  key={i}
+                  onClick={() => setRecordPayment({ fromId: p.from, toId: p.to, amount: p.amount })}
+                  className={`pressable w-full flex items-center gap-3 px-4 py-3.5 text-left ${i > 0 ? "border-t border-[#F4F6F9]" : ""}`}
+                >
+                  <div className="flex items-center shrink-0">
+                    <Avatar member={from} size={26} />
+                    <span className="mx-1.5 text-[#C9D4DF]"><IconArrowRight size={11} /></span>
+                    <Avatar member={to} size={26} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-[13px] truncate ${from.isMe || to.isMe ? "font-600 text-[#0F172A]" : "font-500 text-[#475569]"}`}>
+                      {from.isMe ? "You" : from.name.split(" ")[0]} → {to.isMe ? "you" : to.name.split(" ")[0]}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="num text-[14px] font-700 text-[#0A86A0]">{fmt(p.amount)}</span>
+                    <span className="text-[#C9D4DF]"><IconChevronRight size={14} /></span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Member balances */}
@@ -213,14 +255,14 @@ export default function SettlementView({
                 <p className="text-[14px] font-600 text-[#0F172A] flex-1 truncate">{m.name}</p>
                 <div className="text-right shrink-0">
                   {isEven ? (
-                    <span className="text-[13px] font-600 text-[#94A3B8]">Settled</span>
+                    <p className="text-[14px] font-700 text-[#94A3B8]">৳0</p>
                   ) : (
                     <>
-                      <p className={`num text-[12px] font-700 ${isOwed ? "text-[#15803D]" : "text-[#DC2626]"}`}>
-                        {isOwed ? "Receive" : "Owes"}
-                      </p>
                       <p className={`num text-[14px] font-800 ${isOwed ? "text-[#15803D]" : "text-[#DC2626]"}`}>
-                        {fmt(m.balance)}
+                        {isOwed ? `+${fmt(m.balance)}` : fmt(m.balance)}
+                      </p>
+                      <p className={`text-[11px] font-600 ${isOwed ? "text-[#15803D]" : "text-[#DC2626]"}`}>
+                        {isOwed ? "Receive" : "Owes"}
                       </p>
                     </>
                   )}
@@ -232,18 +274,18 @@ export default function SettlementView({
       </div>
 
       {/* Secondary actions */}
-      <div className="px-4 pt-3 pb-2 space-y-2">
+      <div className="px-4 pt-2 pb-2 space-y-2">
         <button
           onClick={() => setShowManual(true)}
-          className="pressable w-full flex items-center justify-between px-4 h-12 rounded-[13px] bg-white border border-[#E1E7EF] text-[#0F172A] font-600 text-[14px]"
+          className="pressable w-full flex items-center justify-between px-4 h-11 rounded-[13px] bg-white border border-[#E1E7EF] text-[#0F172A] font-600 text-[14px]"
         >
-          <span>Record settlement</span>
+          <span>Record payment manually</span>
           <span className="text-[#94A3B8]"><IconChevronRight size={15} /></span>
         </button>
         {recordedSettlements.length > 0 && (
           <button
             onClick={onOpenHistory}
-            className="pressable w-full flex items-center justify-between px-4 h-12 rounded-[13px] bg-white border border-[#E1E7EF] text-[#475569] font-500 text-[14px]"
+            className="pressable w-full flex items-center justify-between px-4 h-11 rounded-[13px] bg-white border border-[#E1E7EF] text-[#475569] font-500 text-[14px]"
           >
             <div className="flex items-center gap-2.5">
               <IconHistory size={15} />

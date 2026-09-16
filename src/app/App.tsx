@@ -825,7 +825,7 @@ function AuthenticatedApp({
       });
   }
 
-  async function handleLeaveTrip() {
+  function handleLeaveTrip() {
     if (!currentTripId) return;
     const remaining = trips.filter((t) => t.id !== currentTripId);
     setTrips(remaining);
@@ -837,11 +837,7 @@ function AuthenticatedApp({
       selectTrip("");
     }
     setTab("trips");
-    try {
-      await loadTripsForUser(currentUser!.id, true);
-    } catch (err) {
-      console.error("[app] leave trip refresh failed:", err);
-    }
+    onRefreshTrips();
   }
 
   function clearTripError() {
@@ -922,7 +918,7 @@ function AuthenticatedApp({
     trips:      { title: "Trips",                        showBack: false },
     expenses:   { title: "Expenses",                      showBack: false },
     members:    { title: "Members",                       showBack: false },
-    settlement: { title: "Settle up",                     showBack: false },
+    settlement: { title: "Settle up",                     showBack: true },
     settings:   { title: "Settings",                      showBack: false },
   };
   const h = headerConfig[tab];
@@ -1060,12 +1056,11 @@ function AuthenticatedApp({
             <AppHeader
               title={h.title} subtitle={h.subtitle}
               scrolled={false} showBack={h.showBack}
+              onBack={tab === "settlement" ? () => setTab("home") : undefined}
               inlineSync={undefined}
               action={
                 tab === "members" ? (
                   <button onClick={() => setMembersActionsOpen(true)} className="pressable w-9 h-9 flex items-center justify-center rounded-full text-[#0A86A0]" aria-label="Add member"><IconPlus size={19} /></button>
-                ) : tab === "settlement" ? (
-                  <button onClick={() => setSubScreen({ type: "settlement-history" })} className="pressable w-9 h-9 flex items-center justify-center rounded-full text-[#475569]" aria-label="Settlement history"><IconHistory size={18} /></button>
                 ) : undefined
               }
             />
@@ -1111,9 +1106,6 @@ function AuthenticatedApp({
               <h1 className="text-[15px] font-700 text-[#0F172A] flex-1 truncate text-center">{h.title}</h1>
               {tab === "members" && (
                 <button onClick={() => setMembersActionsOpen(true)} className="pressable w-9 h-9 flex items-center justify-center rounded-full text-[#0A86A0] hover:bg-[#EFF9FB]" aria-label="Add member"><IconPlus size={19} /></button>
-              )}
-              {tab === "settlement" && (
-                <button onClick={() => setSubScreen({ type: "settlement-history" })} className="pressable w-9 h-9 flex items-center justify-center rounded-full text-[#475569] hover:bg-[#F4F6F9]" aria-label="Settlement history"><IconHistory size={18} /></button>
               )}
             </div>
             <SyncBanner status={syncStatus} />
