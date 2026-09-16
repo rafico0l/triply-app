@@ -1,14 +1,16 @@
 import { useState } from "react";
 import Sheet from "../../../components/shared/Sheet";
 
-export default function InviteSheet({ onClose, tourName, inviteCode }: { onClose: () => void; tourName: string; inviteCode?: string }) {
+export default function InviteSheet({ onClose, tourName, inviteCode, joinCode }: { onClose: () => void; tourName: string; inviteCode?: string; joinCode?: string }) {
   const [copied, setCopied] = useState(false);
+  const [joinCopied, setJoinCopied] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const hasCode = !!inviteCode;
   const inviteUrl = hasCode
     ? `${window.location.origin}/join/${encodeURIComponent(inviteCode)}`
     : "";
   function handleCopy() { navigator.clipboard.writeText(inviteUrl).catch(() => {}); setCopied(true); setTimeout(() => setCopied(false), 2200); }
+  function handleCopyJoinCode() { if (!joinCode) return; navigator.clipboard.writeText(joinCode).catch(() => {}); setJoinCopied(true); setTimeout(() => setJoinCopied(false), 2200); }
   function handleShare() { if (navigator.share) { navigator.share({ title: `Join ${tourName}`, url: inviteUrl }).catch(() => {}); } else { navigator.clipboard.writeText(inviteUrl).catch(() => {}); setShareCopied(true); setTimeout(() => setShareCopied(false), 2200); } }
   return (
     <Sheet onClose={onClose}>
@@ -43,6 +45,29 @@ export default function InviteSheet({ onClose, tourName, inviteCode }: { onClose
             : <><svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy link</>
           }
         </button>
+        {joinCode && (
+          <div className="bg-[#F4F6F9] rounded-[12px] px-3.5 py-3 border border-[#E1E7EF]">
+            <p className="text-[11px] font-700 text-[#94A3B8] uppercase tracking-wider mb-1.5">Join code</p>
+            <div className="flex items-center gap-2.5">
+              <p className="flex-1 text-[18px] font-700 text-[#0F172A] font-mono tracking-[0.2em] select-all">{joinCode}</p>
+              <button
+                onClick={handleCopyJoinCode}
+                className={`pressable shrink-0 w-8 h-8 flex items-center justify-center rounded-[8px] transition-colors ${
+                  joinCopied ? "bg-[#F0FDF4] text-[#15803D]" : "text-[#94A3B8] hover:bg-[#E1E7EF] hover:text-[#475569]"
+                }`}
+                aria-label={joinCopied ? "Code copied" : "Copy join code"}
+              >
+                {joinCopied
+                  ? <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                  : <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                }
+              </button>
+            </div>
+            <p className="text-[11px] font-500 text-[#94A3B8] mt-1.5 leading-relaxed">
+              Already using Triply? Enter this code from "Join a trip".
+            </p>
+          </div>
+        )}
       </div>
     </Sheet>
   );

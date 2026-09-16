@@ -143,6 +143,108 @@ describe("computeExpenseShares", () => {
     const shares = computeExpenseShares(expense);
     assert.strictEqual(shares.size, 0);
   });
+
+  it("uses canonical sorted order regardless of splitIds input order", () => {
+    // Unsorted input: C, A, B — canonical order: A, B, C
+    // 100 minor / 3 = 34, 33, 33 — A gets 34 (index 0 < remainder 1)
+    const expense = e("1", 1, "1", ["C", "A", "B"]);
+    const shares = computeExpenseShares(expense);
+    assert.strictEqual(shares.get("A"), 34);
+    assert.strictEqual(shares.get("B"), 33);
+    assert.strictEqual(shares.get("C"), 33);
+  });
+
+  it("reversed input produces same result as sorted input", () => {
+    const sorted = e("1", 1, "1", ["A", "B", "C"]);
+    const reversed = e("1", 1, "1", ["C", "B", "A"]);
+    const s1 = computeExpenseShares(sorted);
+    const s2 = computeExpenseShares(reversed);
+    assert.deepStrictEqual(Object.fromEntries(s1), Object.fromEntries(s2));
+  });
+
+  it("100 minor / 3: first participant gets remainder", () => {
+    // 100 / 3 = 33 base, remainder 1 → A=34, B=33, C=33
+    const expense = e("1", 1, "1", ["A", "B", "C"]);
+    const shares = computeExpenseShares(expense);
+    assert.strictEqual(shares.get("A"), 34);
+    assert.strictEqual(shares.get("B"), 33);
+    assert.strictEqual(shares.get("C"), 33);
+    assert.strictEqual(
+      [...shares.values()].reduce((a, b) => a + b, 0),
+      100
+    );
+  });
+
+  it("101 minor / 3: remainder goes to first two participants", () => {
+    // 101 / 3 = 33 base, remainder 2 → A=34, B=34, C=33
+    const expense = e("1", 1.01, "1", ["A", "B", "C"]);
+    const shares = computeExpenseShares(expense);
+    assert.strictEqual(shares.get("A"), 34);
+    assert.strictEqual(shares.get("B"), 34);
+    assert.strictEqual(shares.get("C"), 33);
+    assert.strictEqual(
+      [...shares.values()].reduce((a, b) => a + b, 0),
+      101
+    );
+  });
+
+  it("1 minor / 3: smallest remainder case", () => {
+    // 1 / 3 = 0 base, remainder 1 → A=1, B=0, C=0
+    const expense = e("1", 0.01, "1", ["A", "B", "C"]);
+    const shares = computeExpenseShares(expense);
+    assert.strictEqual(shares.get("A"), 1);
+    assert.strictEqual(shares.get("B"), 0);
+    assert.strictEqual(shares.get("C"), 0);
+    assert.strictEqual(
+      [...shares.values()].reduce((a, b) => a + b, 0),
+      1
+    );
+  });
+
+  it("1000 minor / 7: larger split", () => {
+    // 1000 / 7 = 142 base, remainder 6 → first 6 get 143, last gets 142
+    // Canonical: A,B,C,D,E,F,G → A=143,B=143,C=143,D=143,E=143,F=143,G=142
+    const expense = e("1", 10, "1", ["A", "B", "C", "D", "E", "F", "G"]);
+    const shares = computeExpenseShares(expense);
+    assert.strictEqual(shares.get("A"), 143);
+    assert.strictEqual(shares.get("B"), 143);
+    assert.strictEqual(shares.get("C"), 143);
+    assert.strictEqual(shares.get("D"), 143);
+    assert.strictEqual(shares.get("E"), 143);
+    assert.strictEqual(shares.get("F"), 143);
+    assert.strictEqual(shares.get("G"), 142);
+    assert.strictEqual(
+      [...shares.values()].reduce((a, b) => a + b, 0),
+      1000
+    );
+  });
+
+  it("unsorted 1000 minor / 7: same result as sorted", () => {
+    const sorted = e("1", 10, "1", ["A", "B", "C", "D", "E", "F", "G"]);
+    const unsorted = e("1", 10, "1", ["G", "D", "A", "F", "B", "C", "E"]);
+    const s1 = computeExpenseShares(sorted);
+    const s2 = computeExpenseShares(unsorted);
+    assert.deepStrictEqual(Object.fromEntries(s1), Object.fromEntries(s2));
+    assert.strictEqual(
+      [...s1.values()].reduce((a, b) => a + b, 0),
+      1000
+    );
+  });
+
+  it("share sum always equals expense amount for any ordering", () => {
+    const permutations = [
+      ["A", "B", "C"],
+      ["C", "A", "B"],
+      ["B", "C", "A"],
+      ["C", "B", "A"],
+    ];
+    for (const splitIds of permutations) {
+      const expense = e("1", 1, "1", splitIds);
+      const shares = computeExpenseShares(expense);
+      const sum = [...shares.values()].reduce((a, b) => a + b, 0);
+      assert.strictEqual(sum, 100, `sum mismatch for order ${splitIds.join(",")}`);
+    }
+  });
 });
 
 describe("computeMemberPaid", () => {

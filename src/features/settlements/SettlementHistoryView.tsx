@@ -9,10 +9,10 @@ import SettlementDetailSheet from "./components/SettlementDetailSheet";
 import EditSettlementSheet from "./components/EditSettlementSheet";
 
 export default function SettlementHistoryView({
-  recordedSettlements, members, me, isCurrentUserOwner, onDeleteSettlement, onBack,
+  recordedSettlements, members, me, isCurrentUserOwner, onBack,
 }: {
   recordedSettlements: RecordedSettlement[]; members: Member[]; me: Member | undefined;
-  isCurrentUserOwner: boolean; onDeleteSettlement: (id: string) => void; onBack: () => void;
+  isCurrentUserOwner: boolean; onBack: () => void;
 }) {
   const [selectedId,        setSelectedId]        = useState<string | null>(null);
   const [confirmDeleteId,   setConfirmDeleteId]   = useState<string | null>(null);

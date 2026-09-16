@@ -8,7 +8,11 @@ import type { Trip } from "../domain/trip";
 export class TripRepositoryError extends Error {
   constructor(
     message: string,
-    public readonly code: "FETCH_FAILED" | "PARSE_FAILED" | "UNAUTHENTICATED",
+    public readonly code:
+      | "FETCH_FAILED"
+      | "PARSE_FAILED"
+      | "UNAUTHENTICATED"
+      | "OPERATION_FAILED",
     public readonly cause?: unknown
   ) {
     super(message);
@@ -31,6 +35,7 @@ interface DbTrip {
   created_at: string;
   updated_at: string;
   invite_code: string;
+  join_code: string;
 }
 
 interface DbTripMember {
@@ -41,6 +46,8 @@ interface DbTripMember {
   initials: string | null;
   color: string | null;
   role: "owner" | "member";
+  status: "active" | "left";
+  left_at: string | null;
   created_at: string;
 }
 
@@ -89,11 +96,12 @@ export async function loadTrips(userId: string): Promise<Trip[]> {
     throw new TripRepositoryError("Missing user ID", "UNAUTHENTICATED");
   }
 
-  // 1. Discover trips the user belongs to via trip_members
+  // 1. Discover trips the user belongs to via trip_members (active only)
   const { data: memberRows, error: memberError } = await sb
     .from("trip_members")
     .select("trip_id")
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .eq("status", "active");
 
   if (memberError) {
     throw new TripRepositoryError(
@@ -281,6 +289,7 @@ function mapTrip(
     budget: dbTrip.budget_minor != null ? toMajorUnits(dbTrip.budget_minor) : undefined,
     coverImage: dbTrip.cover_image ?? undefined,
     inviteCode: dbTrip.invite_code,
+    joinCode: dbTrip.join_code,
     members,
     expenses,
     settlements,
@@ -771,6 +780,67 @@ export async function removeMember(tripId: string, memberId: string): Promise<vo
   }
 }
 
+// ── Leave trip ────────────────────────────────────────────────────────────────
+
+export interface LeaveTripResult {
+  memberId: string;
+  tripId: string;
+  leftAt: string;
+}
+
+/**
+ * Leave a trip by transitioning membership status to 'left'.
+ *
+ * Calls the secure RPC `leave_trip` which validates:
+ * - caller is authenticated
+ * - caller has an active membership
+ * - caller is not the trip owner
+ * - no pending settlement workflows involve the caller
+ * - caller's financial balance is exactly zero
+ *
+ * Returns the membership info on success.
+ * Throws TripRepositoryError on failure.
+ */
+export async function leaveTrip(tripId: string): Promise<LeaveTripResult> {
+  const sb = getSupabase();
+
+  if (!tripId) {
+    throw new TripRepositoryError("Missing trip ID", "UNAUTHENTICATED");
+  }
+
+  const { data, error } = await sb.rpc("leave_trip", {
+    p_trip_id: tripId,
+  });
+
+  if (error) {
+    console.error("[tripRepository] leave trip failed:", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
+    throw new TripRepositoryError(
+      error.message || "Failed to leave trip",
+      "OPERATION_FAILED",
+      error
+    );
+  }
+
+  if (!data || data.length === 0) {
+    throw new TripRepositoryError(
+      "Leave trip returned no data",
+      "OPERATION_FAILED"
+    );
+  }
+
+  const row = data[0];
+  return {
+    memberId: row.member_id,
+    tripId: row.trip_id,
+    leftAt: row.left_at,
+  };
+}
+
 // ── Invite / Join ──────────────────────────────────────────────────────────────
 
 export interface JoinTripResult {
@@ -818,6 +888,57 @@ export async function joinTripByInvite(inviteToken: string): Promise<JoinTripRes
 
   if (!data || data.length === 0) {
     throw new TripRepositoryError("Invite not found", "PARSE_FAILED");
+  }
+
+  const row = data[0];
+  return {
+    tripId: row.trip_id,
+    memberId: row.member_id,
+    role: row.role as Member["role"],
+    isNewMember: true,
+  };
+}
+
+/**
+ * Join a trip using a short 6-character join code.
+ *
+ * Calls the secure RPC `join_trip_by_code` which:
+ * - normalizes the code (uppercase, trimmed)
+ * - validates length and existence
+ * - returns existing membership if already joined
+ * - reactivates a previously-left membership
+ * - otherwise creates a new member row
+ *
+ * Returns the trip/member info on success.
+ * Throws TripRepositoryError on failure.
+ */
+export async function joinTripByCode(code: string): Promise<JoinTripResult> {
+  const sb = getSupabase();
+
+  if (!code.trim()) {
+    throw new TripRepositoryError("Missing join code", "PARSE_FAILED");
+  }
+
+  const { data, error } = await sb.rpc("join_trip_by_code", {
+    p_join_code: code.trim(),
+  });
+
+  if (error) {
+    console.error("[tripRepository] join by code failed:", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
+    throw new TripRepositoryError(
+      error.message || "Failed to join trip",
+      "FETCH_FAILED",
+      error
+    );
+  }
+
+  if (!data || data.length === 0) {
+    throw new TripRepositoryError("Join code not found", "PARSE_FAILED");
   }
 
   const row = data[0];

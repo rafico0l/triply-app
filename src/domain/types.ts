@@ -5,7 +5,9 @@ export interface Member {
   name: string;
   initials: string;
   color: string;
+  /** @deprecated Use computeMemberFinancials() or computeAllMemberFinancials() from finance.ts instead. This field is overwritten at render time by computeMembers() and must not be read from raw trip data. */
   balance: number;
+  /** @deprecated Use computeMemberPaid() from finance.ts instead. This field is overwritten at render time by computeMembers() and must not be read from raw trip data. */
   paid: number;
   isMe?: boolean;
   role?: "owner" | "member" | "guest";

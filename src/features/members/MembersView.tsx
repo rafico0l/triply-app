@@ -9,7 +9,7 @@ import { IconPlus } from "../../components/shared/icons";
 
 export default function MembersView({
   members, expenses, actionsOpen, onActionsClose, onSetMembers, onTapMember,
-  onAddGuest, onRenameMember, onRemoveMember, tourName, inviteCode,
+  onAddGuest, onRenameMember, onRemoveMember, tourName, inviteCode, joinCode,
 }: {
   members: Member[]; expenses: Expense[];
   actionsOpen: boolean; onActionsClose: () => void;
@@ -19,6 +19,7 @@ export default function MembersView({
   onRemoveMember?: (memberId: string) => void;
   tourName?: string;
   inviteCode?: string;
+  joinCode?: string;
 }) {
   const [showInvite,   setShowInvite]   = useState(false);
   const [showAddGuest, setShowAddGuest] = useState(false);
@@ -99,7 +100,7 @@ export default function MembersView({
       {actionsOpen && (
         <MemberActionsMenu onClose={onActionsClose} onInvite={() => setShowInvite(true)} onAddGuest={() => setShowAddGuest(true)} />
       )}
-      {showInvite    && <InviteSheet onClose={() => setShowInvite(false)} tourName={tourName ?? "Trip"} inviteCode={inviteCode} />}
+      {showInvite    && <InviteSheet onClose={() => setShowInvite(false)} tourName={tourName ?? "Trip"} inviteCode={inviteCode} joinCode={joinCode} />}
       {showAddGuest  && <AddGuestSheet onClose={() => setShowAddGuest(false)} onAdd={handleAddGuest} />}
     </div>
   );

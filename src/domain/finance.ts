@@ -63,18 +63,23 @@ export function computeTotalSpent(expenses: Expense[]): MinorUnit {
  * Distributes any remainder deterministically to the first participants
  * so that the sum of all participant shares always equals the expense
  * amount in minor units.
+ *
+ * Canonical participant ordering: member IDs sorted lexicographically.
+ * This ensures frontend and database produce identical remainder
+ * distribution regardless of insertion or query order.
  */
 export function computeExpenseShares(expense: Expense): Map<string, MinorUnit> {
   const totalMinor = toMinorUnits(expense.amount);
   const n = expense.splitIds.length;
   if (n === 0) return new Map();
 
+  const sorted = [...expense.splitIds].sort();
   const baseMinor = Math.floor(totalMinor / n);
   const remainder = totalMinor % n;
   const shares = new Map<string, MinorUnit>();
 
   for (let i = 0; i < n; i++) {
-    shares.set(expense.splitIds[i], baseMinor + (i < remainder ? 1 : 0));
+    shares.set(sorted[i], baseMinor + (i < remainder ? 1 : 0));
   }
 
   return shares;

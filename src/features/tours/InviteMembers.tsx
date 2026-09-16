@@ -19,6 +19,7 @@ interface InviteMembersProps {
   tourName:  string;
   tourDates: string;
   inviteCode: string;
+  joinCode?: string;
   members?:  Member[];
   onAddGuest?: (name: string) => Promise<Member> | void;
   onBack:    () => void;
@@ -27,8 +28,9 @@ interface InviteMembersProps {
 
 const INVITE_BASE = typeof window !== "undefined" ? `${window.location.origin}/join` : "https://tourapp.com/join";
 
-export default function InviteMembers({ tourName, tourDates, inviteCode, members, onAddGuest, onBack, onDone }: InviteMembersProps) {
+export default function InviteMembers({ tourName, tourDates, inviteCode, joinCode, members, onAddGuest, onBack, onDone }: InviteMembersProps) {
   const [copied, setCopied] = useState(false);
+  const [joinCopied, setJoinCopied] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [showAddGuest, setShowAddGuest] = useState(false);
   const [localMembers, setLocalMembers] = useState<Member[]>(members ?? []);
@@ -43,6 +45,13 @@ export default function InviteMembers({ tourName, tourDates, inviteCode, members
     navigator.clipboard.writeText(inviteUrl).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2200);
+  }
+
+  function handleCopyJoinCode() {
+    if (!joinCode) return;
+    navigator.clipboard.writeText(joinCode).catch(() => {});
+    setJoinCopied(true);
+    setTimeout(() => setJoinCopied(false), 2200);
   }
 
   function handleShare() {
@@ -173,6 +182,38 @@ export default function InviteMembers({ tourName, tourDates, inviteCode, members
               </button>
             </div>
           </div>
+
+          {/* ── Join code section ─────────────────────────────────────── */}
+          {joinCode && (
+            <div className="bg-white rounded-[14px] border border-[#E1E7EF] shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
+              <div className="px-4 pt-4 pb-4">
+                <p className="text-[11px] font-700 text-[#94A3B8] uppercase tracking-wider mb-2">Join code</p>
+                <div className="flex items-center gap-2.5 bg-[#F4F6F9] rounded-[10px] px-3 py-2.5 border border-[#E1E7EF]">
+                  <p className="flex-1 text-[20px] font-700 text-[#0F172A] font-mono tracking-[0.2em] select-all">
+                    {joinCode}
+                  </p>
+                  <button
+                    onClick={handleCopyJoinCode}
+                    className={`pressable shrink-0 w-8 h-8 flex items-center justify-center rounded-[8px] transition-colors ${
+                      joinCopied
+                        ? "bg-[#F0FDF4] text-[#15803D]"
+                        : "text-[#94A3B8] hover:bg-[#E1E7EF] hover:text-[#475569]"
+                    }`}
+                    aria-label={joinCopied ? "Code copied" : "Copy join code"}
+                  >
+                    {joinCopied ? (
+                      <HugeiconsIcon icon={CheckIcon} size={16} color="currentColor" strokeWidth={2.5} />
+                    ) : (
+                      <HugeiconsIcon icon={Copy01Icon} size={16} color="currentColor" strokeWidth={1.75} />
+                    )}
+                  </button>
+                </div>
+                <p className="text-[11px] font-500 text-[#94A3B8] mt-2 leading-relaxed">
+                  Already using Triply? Enter this code from "Join a trip".
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* ── Add guest ──────────────────────────────────────────────────── */}
           <button

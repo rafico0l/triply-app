@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowLeft01Icon, Link01Icon, CheckIcon, UserAdd01Icon } from "@hugeicons/core-free-icons";
 import { IconAlertCircle } from "../../components/shared/icons";
-import { joinTripByInvite, type JoinTripResult } from "../../lib/tripRepository";
+import { joinTripByInvite, joinTripByCode, type JoinTripResult } from "../../lib/tripRepository";
 import { TripRepositoryError } from "../../lib/tripRepository";
 
 const JOIN_TOKEN_KEY = "triply_pending_join_token";
@@ -40,7 +40,11 @@ export default function JoinTripScreen({ initialToken, onBack, onJoined }: JoinT
     setResult(null);
 
     try {
-      const res = await joinTripByInvite(code);
+      const normalized = code.trim().toUpperCase();
+      const isShortCode = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/.test(normalized);
+      const res = isShortCode
+        ? await joinTripByCode(normalized)
+        : await joinTripByInvite(code.trim());
       setResult(res);
       localStorage.removeItem(JOIN_TOKEN_KEY);
       setTimeout(() => {

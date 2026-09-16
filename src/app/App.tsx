@@ -22,7 +22,7 @@ import { computeAllMemberFinancials, toMajorUnits } from "../domain/finance";
 import type { Trip } from "../domain/trip";
 import { signOut, getCurrentUser, ensureCurrentUserProfile, getCurrentUserProfileName } from "../lib/auth";
 import { getSupabase } from "../lib/supabase";
-import { loadTrips, TripRepositoryError, createTrip, updateTrip, deleteTrip, addGuest, renameMember, removeMember, createExpense, updateExpense, deleteExpense, createSettlement } from "../lib/tripRepository";
+import { loadTrips, TripRepositoryError, createTrip, updateTrip, deleteTrip, addGuest, renameMember, removeMember, createExpense, updateExpense, deleteExpense, createSettlement, leaveTrip } from "../lib/tripRepository";
 import type { User } from "@supabase/supabase-js";
 
 const DEMO_INVITE_MODE = false;
@@ -484,7 +484,7 @@ export default function App() {
   }
   if (screen === "inviteMembers") {
     const inviteTrip = pendingInviteTrip ?? currentTrip;
-    return <InviteMembers tourName={inviteTrip.name} tourDates={inviteTrip.dates} inviteCode={inviteTrip.inviteCode ?? ""} members={inviteTrip.members} onAddGuest={(name) => {
+    return <InviteMembers tourName={inviteTrip.name} tourDates={inviteTrip.dates} inviteCode={inviteTrip.inviteCode ?? ""} joinCode={inviteTrip.joinCode} members={inviteTrip.members} onAddGuest={(name) => {
       if (!inviteTrip.id) return;
       return addGuest({ tripId: inviteTrip.id, name }).then((member) => {
         setTrips((prev) => prev.map((t) => t.id === inviteTrip.id ? { ...t, members: [...t.members, member] } : t));
@@ -753,10 +753,6 @@ function AuthenticatedApp({
     setSettlementError(null);
   }
 
-  function handleDeleteSettlement(id: string) {
-    updateCurrentTrip((t) => ({ ...t, settlements: t.settlements.filter((s) => s.id !== id) }));
-  }
-
   function computeDatesDisplay(start?: string, end?: string): string {
     if (!start) return "";
     const startStr = new Date(start + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -814,6 +810,24 @@ function AuthenticatedApp({
             : "Failed to delete trip. Please try again."
         );
       });
+  }
+
+  async function handleLeaveTrip() {
+    if (!currentTripId) return;
+    const remaining = trips.filter((t) => t.id !== currentTripId);
+    setTrips(remaining);
+    setTripDetailId(null);
+    if (remaining.length > 0) {
+      setCurrentTripId(remaining[0].id);
+    } else {
+      setCurrentTripId("");
+    }
+    setTab("trips");
+    try {
+      await loadTripsForUser(currentUser!.id, true);
+    } catch (err) {
+      console.error("[app] leave trip refresh failed:", err);
+    }
   }
 
   function clearTripError() {
@@ -919,6 +933,7 @@ function AuthenticatedApp({
           onRemoveMember={handleRemoveMember}
           tourName={currentTrip.name}
           inviteCode={currentTrip.inviteCode}
+          joinCode={currentTrip.joinCode}
         />
       )}
       {tab === "settlement" && (
@@ -1129,7 +1144,6 @@ function AuthenticatedApp({
           members={currentMembers}
           me={me}
           isCurrentUserOwner={me?.role === "owner"}
-          onDeleteSettlement={handleDeleteSettlement}
           onBack={() => setSubScreen(null)}
         />
       )}
@@ -1172,6 +1186,7 @@ function AuthenticatedApp({
               onRenameMember={handleRenameMember}
               onRemoveMember={handleRemoveMember}
               inviteCode={currentTrip.inviteCode}
+              joinCode={currentTrip.joinCode}
             />
           </div>
         </div>
@@ -1183,6 +1198,7 @@ function AuthenticatedApp({
           tourName={inviteTrip.name}
           tourDates={inviteTrip.dates}
           inviteCode={inviteTrip.inviteCode ?? ""}
+          joinCode={inviteTrip.joinCode}
           members={inviteTrip.members}
           onAddGuest={(name) => {
             if (!inviteTrip.id) return;
@@ -1203,6 +1219,7 @@ function AuthenticatedApp({
           <div className="safe-top" />
             <TripDetailsView
               trip={currentTrip}
+              members={currentMembers}
               onBack={() => setTripDetailId(null)}
               onSeeAllExpenses={() => {
                 setTripDetailId(null);
@@ -1217,6 +1234,7 @@ function AuthenticatedApp({
               }}
               onSaveTrip={handleSaveTrip}
               onDeleteTrip={handleDeleteTrip}
+              onLeaveTrip={handleLeaveTrip}
               onEditExpense={(expense) => {
                 setTripDetailId(null);
                 setEditingExpense(expense);

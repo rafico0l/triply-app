@@ -15,12 +15,13 @@ import { computeTotalSpent, computeMemberShare, computeBudgetStats, toMajorUnits
 import { IconDots, IconDotsV } from "../../components/shared/icons";
 import TripOverflowSheet from "./components/TripOverflowSheet";
 import DeleteTripSheet from "./components/DeleteTripSheet";
+import LeaveTripSheet from "./components/LeaveTripSheet";
 import ExpenseOverflowSheet from "../expenses/components/ExpenseOverflowSheet";
 import DeleteExpenseSheet from "../expenses/components/DeleteExpenseSheet";
-
 // ─── Props ───────────────────────────────────────────────────────────────────
 export interface TripDetailsViewProps {
   trip: Trip;
+  members: Member[];
   onBack: () => void;
   onSeeAllExpenses?: (tripId: string) => void;
   onTapExpense?: (expenseId: string, expense: Expense) => void;
@@ -29,6 +30,7 @@ export interface TripDetailsViewProps {
   onInvite?: () => void;
   onSaveTrip?: (patch: { name: string; startDate?: string; endDate?: string; budget?: number }) => void;
   onDeleteTrip?: () => void;
+  onLeaveTrip?: () => void;
   onEditExpense?: (expense: Expense) => void;
   onDeleteExpense?: (expenseId: string) => void;
   onGoHome?: () => void;
@@ -37,6 +39,7 @@ export interface TripDetailsViewProps {
 // ─── Component ───────────────────────────────────────────────────────────────
 export default function TripDetailsView({
   trip,
+  members,
   onBack,
   onSeeAllExpenses,
   onTapExpense,
@@ -45,6 +48,7 @@ export default function TripDetailsView({
   onInvite,
   onSaveTrip,
   onDeleteTrip,
+  onLeaveTrip,
   onEditExpense,
   onDeleteExpense,
   onGoHome,
@@ -59,7 +63,7 @@ export default function TripDetailsView({
   const budget = trip.budget ?? 0;
 
   const durationDays = computeDurationDays(trip) ?? 1;
-  const me = trip.members.find((m) => m.isMe);
+  const me = members.find((m) => m.isMe);
   const effectiveStatus = computeTripStatus(trip);
   const myShare = me ? toMajorUnits(computeMemberShare(me.id, trip.expenses)) : 0;
 
@@ -76,6 +80,9 @@ export default function TripDetailsView({
   // ── Edit mode ───────────────────────────────────────────────────────────
   const [isEditing, setIsEditing] = useState(false);
   const [showDiscard, setShowDiscard] = useState(false);
+
+  // ── Leave trip sheet ────────────────────────────────────────────────────
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   const nameId = useId();
   const budgetId = useId();
@@ -360,7 +367,7 @@ export default function TripDetailsView({
           <div>
             <div className="flex items-center justify-between mb-2 px-1">
               <h3 className="text-[14px] font-700 text-[#0F172A]">
-                Members · {trip.members.length}
+                Members · {members.length}
               </h3>
               {effectiveStatus !== "completed" && (
                 <button
@@ -374,7 +381,7 @@ export default function TripDetailsView({
             <div className="bg-white rounded-[16px] border border-[#E1E7EF] p-3">
               <div className="relative">
                 <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-1 -mb-1">
-                  {trip.members.map((member) => (
+                  {members.map((member) => (
                     <button
                       key={member.id}
                       onClick={() => onTapMember?.(member.id, member)}
@@ -431,7 +438,7 @@ export default function TripDetailsView({
                 <div className="space-y-0 divide-y divide-[#F4F6F9]">
                   {trip.expenses.slice(0, 4).map((expense) => {
                     const cat = getCategoryMeta(expense.category);
-                    const payer = trip.members.find((m) => m.id === expense.paidBy);
+                    const payer = members.find((m) => m.id === expense.paidBy);
                     const payerLabel = payer?.isMe
                       ? "You"
                       : payer
@@ -499,8 +506,10 @@ export default function TripDetailsView({
       {/* ── Trip Overflow Sheet ────────────────────────────────────────────── */}
       {showOverflow && (
         <TripOverflowSheet
+          isOwner={me?.role === "owner"}
           onEdit={enterEdit}
           onDelete={() => { setShowOverflow(false); setShowDeleteConfirm(true); }}
+          onLeave={() => { setShowOverflow(false); setShowLeaveConfirm(true); }}
           onClose={() => setShowOverflow(false)}
         />
       )}
@@ -560,6 +569,18 @@ export default function TripDetailsView({
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Leave Trip Confirmation ────────────────────────────────────────── */}
+      {showLeaveConfirm && me && (
+        <LeaveTripSheet
+          member={me}
+          members={members}
+          expenses={trip.expenses}
+          settlements={trip.settlements}
+          onLeave={() => { setShowLeaveConfirm(false); onLeaveTrip?.(); }}
+          onClose={() => setShowLeaveConfirm(false)}
+        />
       )}
     </div>
   );

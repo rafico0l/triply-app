@@ -25,6 +25,7 @@ export interface Trip {
   travelerCount?: number;
   durationDays?: number;
   inviteCode?: string;
+  joinCode?: string;
   members: Member[];
   expenses: Expense[];
   settlements: RecordedSettlement[];
