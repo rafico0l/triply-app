@@ -21,13 +21,15 @@ export default function HomeExpenseRow({ expense, members }: { expense: Expense;
         {cat.icon}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[14px] font-600 text-[#0F172A] truncate leading-snug">{expense.title}</p>
-        <p className="text-[12px] text-[#94A3B8] font-500 mt-0.5 leading-snug">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="text-[14px] font-600 text-[#0F172A] truncate leading-snug">{expense.title}</p>
+          <span className="num text-[14px] font-700 text-[#0F172A] shrink-0">{fmt(expense.amount)}</span>
+        </div>
+        <p className="text-[12px] text-[#64748B] font-500 mt-0.5 leading-snug">
           {isMe ? "You paid" : payer ? `${payer.name.split(" ")[0]} paid` : "Unknown"}
-          {inSplit && ` · Your share ${fmt(myShare)}`}
+          {inSplit && <span> · Your share {fmt(myShare)}</span>}
         </p>
       </div>
-      <span className="num text-[14px] font-700 text-[#0F172A] shrink-0">{fmt(expense.amount)}</span>
     </div>
   );
 }

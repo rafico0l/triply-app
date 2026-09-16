@@ -1,9 +1,19 @@
+import { useState } from "react";
 import type { Expense, Member } from "../../../domain/types";
+import type { Trip } from "../../../domain/trip";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { MapIcon, Add01Icon, AiSwapIcon, PlusIcon } from "@hugeicons/core-free-icons";
+import { MapIcon, Add01Icon, AiSwapIcon, PlusIcon, ChevronDownIcon } from "@hugeicons/core-free-icons";
 import { fmt } from "../../../lib/format";
-import { computeTotalSpent, computeBudgetStats, computeMemberShare, toMajorUnits, toMinorUnits } from "../../../domain/finance";
+import {
+  computeTotalSpent,
+  computeBudgetStats,
+  computeMemberShare,
+  toMajorUnits,
+  toMinorUnits,
+} from "../../../domain/finance";
+import { computeTripStatus } from "../../../domain/trip";
 import EmptyState from "../../../components/shared/EmptyState";
+import TripSwitcherSheet from "./TripSwitcherSheet";
 
 function tripsHaveNoData(expenses: Expense[], members: Member[]): boolean {
   return expenses.length === 0 && members.length === 0;
@@ -20,6 +30,11 @@ export default function BalanceCard({
   budget,
   tripName,
   tripDates,
+  startDate,
+  endDate,
+  trips,
+  currentTripId,
+  onSwitchTrip,
 }: {
   expenses: Expense[];
   members: Member[];
@@ -31,22 +46,42 @@ export default function BalanceCard({
   budget?: number;
   tripName?: string;
   tripDates?: string;
+  startDate?: string;
+  endDate?: string;
+  trips?: Trip[];
+  currentTripId?: string;
+  onSwitchTrip?: (id: string) => void;
 }) {
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+
   const totalMinor = computeTotalSpent(expenses);
   const total = toMajorUnits(totalMinor);
   const me = members.find((m) => m.isMe);
   const myBalance = me?.balance ?? 0;
+  const myShare = me ? toMajorUnits(computeMemberShare(me.id, expenses)) : 0;
+  const myShareRounded = Math.round(myShare);
   const hasBudget = budget != null && budget > 0;
   const budgetStats = computeBudgetStats(totalMinor, budget != null ? toMinorUnits(budget) : undefined);
-  const remaining = budgetStats ? toMajorUnits(budgetStats.remainingMinor) : (budget ?? 0) - total;
-  const progress = budgetStats ? budgetStats.spentPercentage / 100 : Math.min(total / (budget ?? 1), 1);
+  const progress = budgetStats ? budgetStats.spentPercentage / 100 : 0;
 
   const balanceZero = myBalance === 0;
   const balancePositive = myBalance > 0;
 
+  const effectiveStatus = computeTripStatus({ startDate, endDate, status: "active" as const });
+  const statusLabel =
+    effectiveStatus === "active"
+      ? "Active"
+      : effectiveStatus === "upcoming"
+        ? "Upcoming"
+        : "Completed";
+
   const noTrip = empty && tripsHaveNoData(expenses, members);
   const tripNoExpenses = !noTrip && expenses.length === 0;
+  const hasSwitcher = trips != null && currentTripId != null && onSwitchTrip != null;
 
+  const openSwitcher = () => { if (hasSwitcher) setSwitcherOpen(true); };
+
+  // ── No trips state ──────────────────────────────────────────────────────
   if (noTrip) {
     return (
       <section className="px-4 pt-3 pb-1">
@@ -59,7 +94,7 @@ export default function BalanceCard({
               <div className="flex flex-col gap-2">
                 <button
                   onClick={onNewTour}
-                  className="pressable flex items-center justify-center gap-1.5 px-5 h-11 rounded-[12px] bg-[#0A86A0] text-white font-700 text-[14px] shadow-[0 2px_8px_rgba(10,134,160,0.18)]"
+                  className="pressable flex items-center justify-center gap-1.5 px-5 h-11 rounded-[12px] bg-[#0A86A0] text-white font-700 text-[14px] shadow-[0_2px_8px_rgba(10,134,160,0.18)]"
                 >
                   <HugeiconsIcon icon={PlusIcon} size={16} color="currentColor" strokeWidth={2.5} />
                   Create your first trip
@@ -80,50 +115,59 @@ export default function BalanceCard({
     );
   }
 
+  // ── Trip with no expenses yet ───────────────────────────────────────────
   if (tripNoExpenses) {
-    const myShare = me ? toMajorUnits(computeMemberShare(me.id, expenses)) : 0;
     return (
       <section className="px-4 pt-3 pb-1">
         <div className="bg-white rounded-[20px] border border-[#E1E7EF] overflow-hidden">
-          {/* Trip context */}
+          {/* Trip identity */}
           <div className="px-5 pt-4 pb-3">
-            <div className="flex items-center gap-3">
+            <button onClick={openSwitcher} className="pressable w-full flex items-center gap-3 text-left">
               <div className="w-10 h-10 rounded-[12px] bg-[#EFF9FB] flex items-center justify-center text-[#0A86A0] shrink-0">
                 <HugeiconsIcon icon={MapIcon} size={20} color="currentColor" strokeWidth={1.5} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[15px] font-700 text-[#0F172A] truncate leading-snug">{tripName ?? "Trip"}</p>
-                <p className="text-[12px] text-[#94A3B8] font-500 mt-0.5">
-                  {tripDates ?? ""} · {members.length} {members.length === 1 ? "traveler" : "travelers"}
+                <p className="text-[15px] font-700 text-[#0F172A] truncate leading-snug">
+                  {tripName ?? "Trip"}
+                </p>
+                <p className="text-[12px] text-[#94A3B8] font-500 mt-0.5 truncate">
+                  {tripDates ?? ""} · {members.length} {members.length === 1 ? "traveler" : "travelers"} · {statusLabel}
                 </p>
               </div>
-            </div>
+              {hasSwitcher && (
+                <span className="text-[#C9D4DF] shrink-0">
+                  <HugeiconsIcon icon={ChevronDownIcon} size={16} color="currentColor" strokeWidth={2} />
+                </span>
+              )}
+            </button>
           </div>
 
-          {/* Financial overview */}
-          <div className="px-5 pt-3 pb-4">
-            <p className="text-[12px] font-600 text-[#94A3B8] mb-1">Total spent</p>
-            <p className="num text-[30px] font-800 text-[#0F172A] leading-tight">৳0</p>
-            <div className="flex items-center gap-5 mt-3">
-              <div>
-                <p className="text-[11px] font-600 text-[#94A3B8] mb-0.5">Your share</p>
-                <p className="num text-[15px] font-700 text-[#0F172A]">৳0</p>
-              </div>
-              <div className="h-[24px] w-px bg-[#E1E7EF]" />
-              <div>
-                <p className="text-[11px] font-600 text-[#94A3B8] mb-0.5">Your balance</p>
-                <p className={`num text-[15px] font-700 ${balanceZero ? "text-[#94A3B8]" : balancePositive ? "text-[#15803D]" : "text-[#DC2626]"}`}>
-                  {balanceZero ? "৳0" : balancePositive ? `+${fmt(myBalance)}` : `-${fmt(myBalance)}`}
-                </p>
-              </div>
+          {/* Divider */}
+          <div className="px-5 border-b border-[#F1F5F9]" />
+
+          {/* Balance */}
+          <div className="px-5 pt-4 pb-3">
+            <p className="text-[12px] font-600 text-[#94A3B8] mb-0.5">Your balance</p>
+            <p className="num text-[30px] font-800 text-[#94A3B8] leading-tight">৳0</p>
+          </div>
+
+          {/* Secondary metrics */}
+          <div className="px-5 pb-3 flex items-baseline justify-between gap-4">
+            <div>
+              <p className="text-[12px] font-600 text-[#94A3B8]">My share</p>
+              <p className="num text-[15px] font-700 text-[#0F172A] mt-0.5">৳0</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[12px] font-600 text-[#94A3B8]">Total spent</p>
+              <p className="num text-[15px] font-700 text-[#0F172A] mt-0.5">৳0</p>
             </div>
           </div>
 
           {/* Actions */}
-          <div className="px-5 pb-4">
+          <div className="px-5 pb-4 pt-1">
             <button
               onClick={onAddExpense}
-              className="pressable inline-flex items-center gap-1.5 px-4 h-9 rounded-[10px] bg-[#0A86A0] text-white font-700 text-[13px] shadow-[0_2px_8px_rgba(10,134,160,0.18)] active:scale-[0.97] transition-all"
+              className="pressable inline-flex items-center gap-1.5 px-4 h-10 rounded-[12px] bg-[#0A86A0] text-white font-700 text-[13px] shadow-[0_2px_8px_rgba(10,134,160,0.18)] active:scale-[0.97] transition-all"
             >
               <HugeiconsIcon icon={PlusIcon} size={14} color="currentColor" strokeWidth={2.5} />
               Add expense
@@ -134,77 +178,91 @@ export default function BalanceCard({
     );
   }
 
+  // ── Main card with expenses ─────────────────────────────────────────────
   const displayName = tripName ?? "Trip";
   const displayDates = tripDates ?? "";
 
   return (
     <section className="px-4 pt-3 pb-1">
       <div className="bg-white rounded-[20px] border border-[#E1E7EF] overflow-hidden">
-        {/* Trip context */}
+        {/* ── Trip identity ──────────────────────────────────────────────── */}
         <div className="px-5 pt-4 pb-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-[12px] bg-[#EFF9FB] flex items-center justify-center text-[#0A86A0] shrink-0">
-              <HugeiconsIcon icon={MapIcon} size={20} color="currentColor" strokeWidth={1.5} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[15px] font-700 text-[#0F172A] truncate leading-snug">{displayName}</p>
-              <p className="text-[12px] text-[#94A3B8] font-500 mt-0.5">
-                {displayDates} · {members.length} travelers
-              </p>
-            </div>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-600 bg-[#EFF9FB] text-[#0A86A0] border border-[#A3DFE9] shrink-0">
-              Active
-            </span>
-          </div>
+          <button onClick={openSwitcher} className="pressable w-full flex items-center gap-3 text-left">
+              <div className="w-10 h-10 rounded-[12px] bg-[#EFF9FB] flex items-center justify-center text-[#0A86A0] shrink-0">
+                <HugeiconsIcon icon={MapIcon} size={20} color="currentColor" strokeWidth={1.5} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[15px] font-700 text-[#0F172A] truncate leading-snug">
+                  {displayName}
+                </p>
+                <p className="text-[12px] text-[#94A3B8] font-500 mt-0.5 truncate">
+                  {displayDates} · {members.length} travelers · {statusLabel}
+                </p>
+              </div>
+              {hasSwitcher && (
+                <span className="text-[#C9D4DF] shrink-0">
+                  <HugeiconsIcon icon={ChevronDownIcon} size={16} color="currentColor" strokeWidth={2} />
+                </span>
+              )}
+            </button>
         </div>
 
-        {/* Divider */}
+        {/* ── Divider ────────────────────────────────────────────────────── */}
         <div className="px-5 border-b border-[#F1F5F9]" />
 
-        {/* Balance */}
+        {/* ── Your Balance (PRIMARY) ──────────────────────────────────────── */}
         <div className="px-5 pt-4 pb-3">
-          <p className="text-[12px] font-600 text-[#94A3B8] mb-1.5">Your balance</p>
-          <div className="flex items-baseline justify-between">
-            <span
-              className={`num text-[30px] font-800 leading-tight ${
-                balanceZero
-                  ? "text-[#94A3B8]"
-                  : balancePositive
-                    ? "text-[#15803D]"
-                    : "text-[#0F172A]"
-              }`}
-            >
-              {balanceZero ? "৳0" : balancePositive ? `+${fmt(myBalance)}` : `-${fmt(myBalance)}`}
-            </span>
-            <span
-              className={`text-[13px] font-600 ${
-                balanceZero
-                  ? "text-[#94A3B8]"
-                  : balancePositive
-                    ? "text-[#15803D]"
-                    : "text-[#DC2626]"
-              }`}
-            >
-              {balanceZero
-                ? "You're settled up"
+          <p className="text-[12px] font-600 text-[#94A3B8] mb-0.5">Your balance</p>
+          <p
+            className={`num text-[30px] font-800 leading-tight ${
+              balanceZero
+                ? "text-[#94A3B8]"
                 : balancePositive
-                  ? "You are owed"
-                  : "You owe"}
-            </span>
-          </div>
+                  ? "text-[#15803D]"
+                  : "text-[#DC2626]"
+            }`}
+          >
+            {balanceZero ? "৳0" : balancePositive ? `+${fmt(myBalance)}` : `-${fmt(myBalance)}`}
+          </p>
         </div>
 
-        {/* Trip spending */}
-        <div className="px-5 py-3">
-          <div className="flex items-center justify-between">
+        {/* ── Secondary metrics: My share / Total spent ──────────────────── */}
+        <div className="px-5 pb-3 flex items-baseline justify-between gap-4">
+          <div>
+            <p className="text-[12px] font-600 text-[#94A3B8]">My share</p>
+            <p className="num text-[15px] font-700 text-[#0F172A] mt-0.5">{fmt(myShareRounded)}</p>
+          </div>
+          <div className="text-right">
             <p className="text-[12px] font-600 text-[#94A3B8]">Total spent</p>
-            <span className="num text-[13px] font-700 text-[#0F172A]">
-              {hasBudget ? `${fmt(total)} of ${fmt(budget ?? 0)}` : fmt(total)}
-            </span>
+            <p className="num text-[15px] font-700 text-[#0F172A] mt-0.5">{fmt(total)}</p>
           </div>
         </div>
 
-        {/* Actions */}
+        {/* ── Budget progress (optional) ─────────────────────────────────── */}
+        {hasBudget && budgetStats && (
+          <>
+            <div className="px-5 border-b border-[#F1F5F9]" />
+            <div className="px-5 py-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[12px] font-600 text-[#94A3B8]">Budget</p>
+                <p className="num text-[12px] font-600 text-[#475569]">
+                  {fmt(total)} of {fmt(budget ?? 0)}
+                </p>
+              </div>
+              <div className="h-[4px] bg-[#F1F5F9] rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-[#0A86A0] rounded-full transition-all"
+                  style={{ width: `${progress * 100}%` }}
+                />
+              </div>
+              <p className="num text-[11px] font-600 text-[#94A3B8] mt-1 text-right">
+                {budgetStats.spentPercentage}%
+              </p>
+            </div>
+          </>
+        )}
+
+        {/* ── Actions ────────────────────────────────────────────────────── */}
         <div className="px-5 pb-4 pt-1 grid grid-cols-2 gap-2.5">
           <button
             onClick={onAddExpense}
@@ -222,6 +280,19 @@ export default function BalanceCard({
           </button>
         </div>
       </div>
+
+      {/* ── Trip Switcher ─────────────────────────────────────────────── */}
+      {hasSwitcher && (
+        <TripSwitcherSheet
+          open={switcherOpen}
+          onClose={() => setSwitcherOpen(false)}
+          trips={trips}
+          currentTripId={currentTripId}
+          onSelectTrip={onSwitchTrip}
+          onCreateTrip={() => { setSwitcherOpen(false); onNewTour?.(); }}
+          onJoinTrip={onJoinTrip ? () => { setSwitcherOpen(false); onJoinTrip(); } : undefined}
+        />
+      )}
     </section>
   );
 }

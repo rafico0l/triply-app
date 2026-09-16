@@ -1,4 +1,5 @@
 import type { Expense, Member } from "../../domain/types";
+import type { Trip } from "../../domain/trip";
 import type { Tab } from "../../types/navigation";
 import HomeHeader from "./components/HomeHeader";
 import BalanceCard from "./components/BalanceCard";
@@ -16,10 +17,15 @@ export default function HomeView({
   budget,
   tripName,
   tripDates,
+  startDate,
+  endDate,
   onNewTour,
   onJoinTrip,
   onNotificationPress,
   pendingNotificationCount,
+  trips,
+  currentTripId,
+  onSwitchTrip,
 }: {
   expenses: Expense[];
   members: Member[];
@@ -31,10 +37,15 @@ export default function HomeView({
   budget?: number;
   tripName?: string;
   tripDates?: string;
+  startDate?: string;
+  endDate?: string;
   onNewTour?: () => void;
   onJoinTrip?: () => void;
   onNotificationPress?: () => void;
   pendingNotificationCount?: number;
+  trips?: Trip[];
+  currentTripId?: string;
+  onSwitchTrip?: (id: string) => void;
 }) {
   const me = members.find((m) => m.isMe);
   const userName = currentUserName ?? me?.name ?? "You";
@@ -42,7 +53,12 @@ export default function HomeView({
 
   return (
     <div className="bg-[#F4F6F9] min-h-full">
-      <HomeHeader userName={userName} greeting={greeting} onNotificationPress={onNotificationPress} pendingCount={pendingNotificationCount} />
+      <HomeHeader
+        userName={userName}
+        greeting={greeting}
+        onNotificationPress={onNotificationPress}
+        pendingCount={pendingNotificationCount}
+      />
       <BalanceCard
         expenses={expenses}
         members={members}
@@ -54,6 +70,11 @@ export default function HomeView({
         budget={budget}
         tripName={tripName}
         tripDates={tripDates}
+        startDate={startDate}
+        endDate={endDate}
+        trips={trips}
+        currentTripId={currentTripId}
+        onSwitchTrip={onSwitchTrip}
       />
       {!empty && (
         <RecentExpenses
