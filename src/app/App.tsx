@@ -20,6 +20,7 @@ import TripsView from "../features/trips/TripsView";
 import TripDetailsView from "../features/trips/TripDetailsView";
 import { computeAllMemberFinancials, toMajorUnits } from "../domain/finance";
 import type { Trip } from "../domain/trip";
+import { resolveDefaultTripId, LAST_SELECTED_TRIP_KEY } from "../domain/trip";
 import { signOut, getCurrentUser, ensureCurrentUserProfile, getCurrentUserProfileName } from "../lib/auth";
 import { getSupabase } from "../lib/supabase";
 import { loadTrips, TripRepositoryError, createTrip, updateTrip, deleteTrip, addGuest, renameMember, removeMember, createExpense, updateExpense, deleteExpense, createSettlement, leaveTrip } from "../lib/tripRepository";
@@ -272,6 +273,14 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>(DEMO_INVITE_MODE ? "inviteAccept" : "tour");
   const [trips, setTrips] = useState<Trip[]>([]);
   const [currentTripId, setCurrentTripId]     = useState<string>("");
+  const selectTrip = (id: string) => {
+    setCurrentTripId(id);
+    if (id) {
+      localStorage.setItem(LAST_SELECTED_TRIP_KEY, id);
+    } else {
+      localStorage.removeItem(LAST_SELECTED_TRIP_KEY);
+    }
+  };
   const [tripsLoading, setTripsLoading]       = useState(false);
   const [tripLoadError, setTripLoadError]     = useState<string | null>(null);
   const [creating, setCreating]               = useState(false);
@@ -357,10 +366,14 @@ export default function App() {
       if (!mounted) return;
       setTrips(loadedTrips);
       if (loadedTrips.length > 0) {
-        const firstId = loadedTrips[0].id;
-        setCurrentTripId(firstId);
+        // Try restoring last selected trip
+        const storedId = localStorage.getItem(LAST_SELECTED_TRIP_KEY);
+        const storedValid = storedId && loadedTrips.some((t) => t.id === storedId);
+        const resolvedId = storedValid ? storedId : resolveDefaultTripId(loadedTrips);
+        const selectedId = resolvedId ?? loadedTrips[0].id;
+        selectTrip(selectedId);
       } else {
-        setCurrentTripId("");
+        selectTrip("");
       }
     } catch (err) {
       if (!mounted) return;
@@ -399,7 +412,7 @@ export default function App() {
       }, ownerName);
 
       setTrips((prev) => [...prev, newTrip]);
-      setCurrentTripId(newTrip.id);
+      selectTrip(newTrip.id);
       setPendingInviteTrip(newTrip);
       setScreen("inviteMembers");
     } catch (err) {
@@ -503,7 +516,7 @@ export default function App() {
         setScreen("tour");
         loadTripsForUser(currentUser!.id, true).then(() => {
           if (tripId) {
-            setCurrentTripId(tripId);
+            selectTrip(tripId);
           }
         });
       }}
@@ -551,7 +564,7 @@ export default function App() {
     trips={trips}
     setTrips={setTrips}
     currentTripId={currentTripId}
-    setCurrentTripId={setCurrentTripId}
+    selectTrip={selectTrip}
     isEmpty={trips.length === 0 || currentTripId === ""}
     onNewTour={() => setScreen("createTour")}
     onJoinTour={() => setScreen("joinTrip")}
@@ -566,7 +579,7 @@ export default function App() {
 
 function AuthenticatedApp({
   isEmpty = false, onNewTour, onJoinTour, onSignOut, currentUser,
-  trips, setTrips, currentTripId, setCurrentTripId,
+  trips, setTrips, currentTripId, selectTrip,
   currentUserName, setCurrentUserName,
   currentTrip, onRefreshTrips,
 }: {
@@ -578,7 +591,7 @@ function AuthenticatedApp({
   trips: Trip[];
   setTrips: React.Dispatch<React.SetStateAction<Trip[]>>;
   currentTripId: string;
-  setCurrentTripId: React.Dispatch<React.SetStateAction<string>>;
+  selectTrip: (id: string) => void;
   currentUserName: string | null;
   setCurrentUserName: React.Dispatch<React.SetStateAction<string | null>>;
   currentTrip: Trip;
@@ -794,10 +807,10 @@ function AuthenticatedApp({
         setTrips(remaining);
         setTripDetailId(null);
         if (remaining.length > 0) {
-          const next = remaining[0];
-          setCurrentTripId(next.id);
+          const nextId = resolveDefaultTripId(remaining) ?? remaining[0].id;
+          selectTrip(nextId);
         } else {
-          setCurrentTripId("");
+          selectTrip("");
         }
         setTab("trips");
         setTripError(null);
@@ -818,9 +831,10 @@ function AuthenticatedApp({
     setTrips(remaining);
     setTripDetailId(null);
     if (remaining.length > 0) {
-      setCurrentTripId(remaining[0].id);
+      const nextId = resolveDefaultTripId(remaining) ?? remaining[0].id;
+      selectTrip(nextId);
     } else {
-      setCurrentTripId("");
+      selectTrip("");
     }
     setTab("trips");
     try {
@@ -919,8 +933,8 @@ function AuthenticatedApp({
 
   const PageContent = () => (
     <>
-      {tab === "home"       && <HomeView       expenses={currentExpenses} members={currentMembers} onTabChange={setTab} empty={isEmpty} onAddExpense={() => setShowAddExpense(true)} onSettle={() => setTab("settlement")} currentUserName={currentUserName ?? undefined} budget={currentTrip.budget} tripName={currentTrip.name} tripDates={currentTrip.dates} startDate={currentTrip.startDate} endDate={currentTrip.endDate} onNewTour={onNewTour} onJoinTrip={onJoinTour} onNotificationPress={() => setSubScreen({ type: "notifications" })} pendingNotificationCount={pendingNotificationCount} trips={trips} currentTripId={currentTripId} onSwitchTrip={setCurrentTripId} />}
-      {tab === "trips"      && <TripsView trips={trips} onNewTour={onNewTour} onSelectTour={(id) => { setCurrentTripId(id); setTripDetailId(id); }} onJoinTour={onJoinTour} currentTripId={currentTripId} />}
+      {tab === "home"       && <HomeView       expenses={currentExpenses} members={currentMembers} onTabChange={setTab} empty={isEmpty} onAddExpense={() => setShowAddExpense(true)} onSettle={() => setTab("settlement")} currentUserName={currentUserName ?? undefined} budget={currentTrip.budget} tripName={currentTrip.name} tripDates={currentTrip.dates} startDate={currentTrip.startDate} endDate={currentTrip.endDate} onNewTour={onNewTour} onJoinTrip={onJoinTour} onNotificationPress={() => setSubScreen({ type: "notifications" })} pendingNotificationCount={pendingNotificationCount} trips={trips} currentTripId={currentTripId} onSwitchTrip={selectTrip} />}
+      {tab === "trips"      && <TripsView trips={trips} onNewTour={onNewTour} onSelectTour={(id) => { selectTrip(id); setTripDetailId(id); }} onJoinTour={onJoinTour} currentTripId={currentTripId} />}
       {tab === "expenses"   && <ExpensesView   expenses={currentExpenses} members={currentMembers} onTapExpense={(id) => setSubScreen({ type: "expense-detail", id })} onAddExpense={() => setShowAddExpense(true)} onNewTour={onNewTour} onJoinTrip={onJoinTour} tripName={currentTrip.name} />}
       {tab === "members"    && (
         <MembersView
